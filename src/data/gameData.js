@@ -135,6 +135,83 @@ export const FLOWER_PATCHES = (() => {
   return patches;
 })();
 
+// Dirt paths connecting landmarks: densified centerlines with jittered edges
+// and stable (seeded, precomputed) stone/grass decoration along the sides —
+// generated once so the unevenness never flickers frame to frame.
+function buildPath(rawPoints, width, seedStart) {
+  let seed = seedStart;
+  const rand = () => {
+    seed = (seed * 9301 + 49297) % 233280;
+    return seed / 233280;
+  };
+  const dense = [];
+  const stepsPerSeg = 14;
+  for (let i = 0; i < rawPoints.length - 1; i++) {
+    const [x1, y1] = rawPoints[i];
+    const [x2, y2] = rawPoints[i + 1];
+    for (let s = 0; s < stepsPerSeg; s++) {
+      const t = s / stepsPerSeg;
+      dense.push([x1 + (x2 - x1) * t, y1 + (y2 - y1) * t]);
+    }
+  }
+  dense.push(rawPoints[rawPoints.length - 1]);
+
+  const left = [];
+  const right = [];
+  const decor = [];
+  for (let i = 0; i < dense.length; i++) {
+    const [x, y] = dense[i];
+    const [nx, ny] = dense[Math.min(i + 1, dense.length - 1)];
+    const dx = nx - x, dy = ny - y;
+    const len = Math.hypot(dx, dy) || 1;
+    const px = -dy / len, py = dx / len;
+    const jitter = (rand() - 0.5) * 16;
+    const w = width / 2 + jitter;
+    left.push([x + px * w, y + py * w]);
+    right.push([x - px * w, y - py * w]);
+    if (rand() < 0.4) {
+      const side = rand() < 0.5 ? 1 : -1;
+      const edgeW = w + 5 + rand() * 12;
+      decor.push({ x: x + px * side * edgeW, y: y + py * side * edgeW, kind: rand() < 0.45 ? 'stone' : 'grass', scale: 0.5 + rand() * 0.6, seed: rand() * 10 });
+    }
+  }
+  return { left, right, decor };
+}
+
+export const PATHS = [
+  buildPath([[0, -380], [-10, -100], [-20, 150], [-20, 430]], 46, 5001), // courtyard to bridge
+  buildPath([[0, -380], [150, -200], [300, -50], [420, 120]], 40, 5002), // courtyard to friendship square
+  buildPath([[-20, 430], [-300, 550], [-600, 620], [-900, 700]], 40, 5003), // bridge to Whisperwood path
+];
+
+// Stones and reeds along the riverbank (kept clear of the bridge)
+export const RIVERBANK_PROPS = (() => {
+  const props = [];
+  let seed = 8080;
+  const rand = () => {
+    seed = (seed * 9301 + 49297) % 233280;
+    return seed / 233280;
+  };
+  const pts = VALE_LANDMARKS.river.points;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [x1, y1] = pts[i];
+    const [x2, y2] = pts[i + 1];
+    const steps = 12;
+    for (let s = 0; s < steps; s++) {
+      const t = s / steps;
+      const x = x1 + (x2 - x1) * t;
+      const y = y1 + (y2 - y1) * t;
+      if (Math.abs(x - VALE_LANDMARKS.bridge.x) < VALE_LANDMARKS.bridge.w / 2 + 50) continue;
+      if (rand() < 0.55) {
+        const side = rand() < 0.5 ? 1 : -1;
+        const offset = VALE_LANDMARKS.river.width / 2 + 8 + rand() * 24;
+        props.push({ x, y: y + side * offset, kind: rand() < 0.4 ? 'rock' : 'reed', scale: 0.5 + rand() * 0.7, sway: rand() * Math.PI * 2 });
+      }
+    }
+  }
+  return props;
+})();
+
 export const CRYSTALS = [
   { x: 260, y: -180, id: 'crystal_1' },
   { x: -540, y: 260, id: 'crystal_2' },

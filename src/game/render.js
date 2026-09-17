@@ -1,4 +1,4 @@
-import { VALE_LANDMARKS, TREES, ROCKS, FLOWER_PATCHES } from '../data/gameData.js';
+import { VALE_LANDMARKS, TREES, ROCKS, FLOWER_PATCHES, PATHS } from '../data/gameData.js';
 import { riverYAt } from './collision.js';
 
 const FLOWER_HUES = ['#d98fa3', '#a89bd9', '#d9b45c', '#8fb3c9', '#eef0f7', '#e8a15c'];
@@ -116,6 +116,68 @@ export function drawGround(ctx, w, h, camX, camY, zoom) {
     }
   }
   ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+export function drawPaths(ctx, toScreen) {
+  for (const path of PATHS) {
+    ctx.beginPath();
+    const first = toScreen(path.left[0][0], path.left[0][1]);
+    ctx.moveTo(first.x, first.y);
+    for (const [x, y] of path.left) {
+      const p = toScreen(x, y);
+      ctx.lineTo(p.x, p.y);
+    }
+    for (let i = path.right.length - 1; i >= 0; i--) {
+      const [x, y] = path.right[i];
+      const p = toScreen(x, y);
+      ctx.lineTo(p.x, p.y);
+    }
+    ctx.closePath();
+    const grad = ctx.createLinearGradient(first.x, first.y - 40, first.x, first.y + 200);
+    grad.addColorStop(0, '#8a7355');
+    grad.addColorStop(1, '#6b5a42');
+    ctx.fillStyle = grad;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(60,48,32,0.35)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    for (const d of path.decor) {
+      const p = toScreen(d.x, d.y);
+      if (d.kind === 'stone') {
+        ctx.fillStyle = '#8a8a90';
+        ctx.beginPath();
+        ctx.ellipse(p.x, p.y, 4 * d.scale, 3 * d.scale, 0, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        ctx.strokeStyle = 'rgba(150,190,140,0.6)';
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(p.x + 3 * d.scale, p.y - 9 * d.scale);
+        ctx.stroke();
+      }
+    }
+  }
+}
+
+export function drawReed(ctx, p, prop, t) {
+  const sway = Math.sin(t * 1.4 + prop.sway) * 5 * prop.scale;
+  ctx.save();
+  ctx.translate(p.x, p.y);
+  ctx.fillStyle = 'rgba(10,20,15,0.2)';
+  ctx.beginPath();
+  ctx.ellipse(0, 4, 10 * prop.scale, 4 * prop.scale, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#4d7d57';
+  ctx.lineWidth = 2 * prop.scale;
+  for (const dx of [-4, 0, 4]) {
+    ctx.beginPath();
+    ctx.moveTo(dx * prop.scale, 4);
+    ctx.quadraticCurveTo(dx * prop.scale + sway * 0.6, -10 * prop.scale, dx * prop.scale + sway, -22 * prop.scale);
+    ctx.stroke();
+  }
   ctx.restore();
 }
 
@@ -241,9 +303,15 @@ export function drawRiverAndBridge(ctx, toScreen, camX, camY, t, viewRadius) {
   const plankCount = 9;
   for (let i = 0; i < plankCount; i++) {
     const py = -br.h / 2 + (i / (plankCount - 1)) * br.h;
+    const jitterY = (rand() - 0.5) * 4;
+    const jitterRot = (rand() - 0.5) * 0.05;
     const shade = 60 + rand() * 30;
+    ctx.save();
+    ctx.translate(0, py + jitterY);
+    ctx.rotate(jitterRot);
     ctx.fillStyle = `rgb(${shade + 60},${shade + 30},${shade})`;
-    ctx.fillRect(-br.w / 2, py - 6, br.w, 11);
+    ctx.fillRect(-br.w / 2, -6, br.w, 11);
+    ctx.restore();
   }
   ctx.fillStyle = '#4a3a28';
   ctx.fillRect(-br.w / 2 - 6, -br.h / 2 - 6, 8, br.h + 12);

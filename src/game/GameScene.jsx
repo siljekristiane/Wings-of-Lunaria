@@ -1,11 +1,13 @@
 import { useEffect, useRef } from 'react';
 import {
   VALE_LANDMARKS, TREES, ROCKS, CRYSTALS, LANTERNS, NPCS, COLLECTIBLES, STAR_FRAGMENTS, INTERIORS, CAMERA_MODES,
+  RIVERBANK_PROPS,
 } from '../data/gameData.js';
 import { resolveVale } from './collision.js';
 import { resolveRects } from './interiorCollision.js';
 import {
   drawSky, drawAurora, drawShootingStars, drawGroundFog, drawFireflies, drawGround, drawGrassSway, drawFlowers,
+  drawPaths, drawReed,
   drawTree, drawRock, drawRiverAndBridge, drawFriendshipSquare, drawAcademy, drawPortal, drawCrystal, drawLantern,
   drawCollectibleGlow, drawCharacter, drawCompanionCanvas, drawNameTag, drawInteractPrompt,
   drawAcademyHallInterior, drawRoomInterior,
@@ -393,6 +395,7 @@ export default function GameScene({ save, paused, dispatch, emoteRequest, isMobi
   function drawVale(ctx, toScreen, st, w, h, zoom) {
     const sv = saveRef.current;
     drawGround(ctx, w, h, st.camera.x, st.camera.y, zoom);
+    drawPaths(ctx, toScreen);
     drawFriendshipSquare(ctx, toScreen);
     drawRiverAndBridge(ctx, toScreen, st.camera.x, st.camera.y, st.time, 900 / zoom);
     drawFlowers(ctx, toScreen);
@@ -406,6 +409,13 @@ export default function GameScene({ save, paused, dispatch, emoteRequest, isMobi
     for (const r of ROCKS) {
       if (Math.abs(r.x - st.camera.x) > 900 / zoom || Math.abs(r.y - st.camera.y) > 700 / zoom) continue;
       entities.push({ y: r.y + 6, draw: () => drawRock(ctx, toScreen(r.x, r.y), r) });
+    }
+    for (const rp of RIVERBANK_PROPS) {
+      if (Math.abs(rp.x - st.camera.x) > 900 / zoom || Math.abs(rp.y - st.camera.y) > 700 / zoom) continue;
+      entities.push({
+        y: rp.y,
+        draw: () => (rp.kind === 'rock' ? drawRock(ctx, toScreen(rp.x, rp.y), rp) : drawReed(ctx, toScreen(rp.x, rp.y), rp, st.time)),
+      });
     }
     for (const c of CRYSTALS) entities.push({ y: c.y, draw: () => drawCrystal(ctx, toScreen(c.x, c.y), st.time, c.x) });
     for (const l of LANTERNS) entities.push({ y: l.y, draw: () => drawLantern(ctx, toScreen(l.x, l.y), st.time, l.x) });
