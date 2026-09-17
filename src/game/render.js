@@ -82,6 +82,20 @@ export function drawGroundFog(ctx, w, h, t) {
   ctx.restore();
 }
 
+export function drawButterfly(ctx, p, b, t) {
+  const flap = Math.sin(t * 10 + b.phase * 4);
+  ctx.save();
+  ctx.translate(p.x, p.y);
+  ctx.fillStyle = 'rgba(10,15,25,0.12)';
+  ctx.beginPath(); ctx.ellipse(0, 10, 5, 2, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = b.hue;
+  ctx.save(); ctx.scale(Math.max(0.25, Math.abs(flap)), 1);
+  ctx.beginPath(); ctx.ellipse(-2.4, 0, 3.2, 2.2, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(2.4, 0, 3.2, 2.2, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+  ctx.restore();
+}
+
 export function drawFireflies(ctx, particles, t) {
   for (const p of particles) {
     const flicker = 0.5 + 0.5 * Math.sin(t * 2 + p.seed * 10);
@@ -200,14 +214,16 @@ export function drawGrassSway(ctx, toScreen, camX, camY, t, viewRadius) {
   }
 }
 
-export function drawFlowers(ctx, toScreen) {
+export function drawFlowers(ctx, toScreen, t) {
   for (const f of FLOWER_PATCHES) {
     const p = toScreen(f.x, f.y);
     if (p.x < -20 || p.x > p.vw + 20 || p.y < -20 || p.y > p.vh + 20) continue;
+    const sway = Math.sin(t * 1.3 + f.x * 0.05) * 2;
     ctx.fillStyle = FLOWER_HUES[f.hue];
     for (let k = 0; k < 3; k++) {
+      const petalPhase = t * 1.3 + f.x * 0.05 + k * 1.4;
       ctx.beginPath();
-      ctx.arc(p.x + k * 5 - 5, p.y + (k % 2) * 4, 2.6, 0, Math.PI * 2);
+      ctx.arc(p.x + k * 5 - 5 + sway, p.y + (k % 2) * 4 + Math.sin(petalPhase) * 1.4, 2.6, 0, Math.PI * 2);
       ctx.fill();
     }
   }
@@ -240,6 +256,17 @@ export function drawTree(ctx, p, tree, t) {
     ctx.beginPath(); ctx.moveTo(-22 * s, 10 * s); ctx.lineTo(22 * s, 10 * s); ctx.lineTo(0, -40 * s); ctx.closePath(); ctx.fill();
     ctx.fillStyle = '#4d7d57';
     ctx.beginPath(); ctx.moveTo(-16 * s, -6 * s); ctx.lineTo(16 * s, -6 * s); ctx.lineTo(0, -48 * s); ctx.closePath(); ctx.fill();
+  }
+  // a couple of light-catching leaf glints that flicker as the canopy trembles
+  for (let g = 0; g < 2; g++) {
+    const glintPhase = t * 2.4 + tree.sway * 3 + g * 2.1;
+    const flicker = Math.max(0, Math.sin(glintPhase));
+    if (flicker > 0.55) {
+      ctx.fillStyle = `rgba(230,240,200,${(flicker - 0.55) * 1.6})`;
+      ctx.beginPath();
+      ctx.arc((g === 0 ? -12 : 11) * s, (-12 + g * 6) * s, 2.2 * s, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
   ctx.restore();
 }
@@ -281,7 +308,24 @@ export function drawRiverAndBridge(ctx, toScreen, camX, camY, t, viewRadius) {
   ctx.fillStyle = grad;
   ctx.fill();
 
+  // moonlight glints reflected on the surface — soft, slowly pulsing streaks
+  ctx.save();
+  for (let x = -viewRadius; x < viewRadius; x += 130) {
+    const wx = camX + x;
+    const wy = riverYAt(wx);
+    const shimmer = 0.15 + 0.15 * Math.max(0, Math.sin(t * 0.6 + x * 0.02));
+    const p = toScreen(wx, wy);
+    const grad = ctx.createLinearGradient(p.x, p.y - 22, p.x, p.y + 22);
+    grad.addColorStop(0, 'rgba(230,240,255,0)');
+    grad.addColorStop(0.5, `rgba(230,240,255,${shimmer})`);
+    grad.addColorStop(1, 'rgba(230,240,255,0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(p.x - 3, p.y - 22, 6, 44);
+  }
+  ctx.restore();
+
   // moving water ripples
+  ctx.save();
   ctx.strokeStyle = 'rgba(220,240,255,0.28)';
   ctx.lineWidth = 2;
   for (let x = -viewRadius; x < viewRadius; x += 44) {

@@ -212,6 +212,28 @@ export const RIVERBANK_PROPS = (() => {
   return props;
 })();
 
+// A few small creatures wandering near flower patches for ambient life
+export const BUTTERFLIES = (() => {
+  const list = [];
+  let seed = 2024;
+  const rand = () => {
+    seed = (seed * 9301 + 49297) % 233280;
+    return seed / 233280;
+  };
+  for (let i = 0; i < 6; i++) {
+    const patch = FLOWER_PATCHES[Math.floor(rand() * FLOWER_PATCHES.length)];
+    list.push({
+      baseX: patch.x + (rand() - 0.5) * 40,
+      baseY: patch.y + (rand() - 0.5) * 40,
+      hue: ['#e8a15c', '#d98fa3', '#eef0f7', '#a89bd9'][Math.floor(rand() * 4)],
+      phase: rand() * Math.PI * 2,
+      radius: 30 + rand() * 30,
+      speed: 0.3 + rand() * 0.25,
+    });
+  }
+  return list;
+})();
+
 export const CRYSTALS = [
   { x: 260, y: -180, id: 'crystal_1' },
   { x: -540, y: 260, id: 'crystal_2' },

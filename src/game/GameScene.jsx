@@ -1,12 +1,12 @@
 import { useEffect, useRef } from 'react';
 import {
   VALE_LANDMARKS, TREES, ROCKS, CRYSTALS, LANTERNS, NPCS, COLLECTIBLES, STAR_FRAGMENTS, INTERIORS, CAMERA_MODES,
-  RIVERBANK_PROPS,
+  RIVERBANK_PROPS, BUTTERFLIES,
 } from '../data/gameData.js';
 import { resolveVale } from './collision.js';
 import { resolveRects } from './interiorCollision.js';
 import {
-  drawSky, drawAurora, drawShootingStars, drawGroundFog, drawFireflies, drawGround, drawGrassSway, drawFlowers,
+  drawSky, drawAurora, drawShootingStars, drawGroundFog, drawFireflies, drawButterfly, drawGround, drawGrassSway, drawFlowers,
   drawPaths, drawReed,
   drawTree, drawRock, drawRiverAndBridge, drawFriendshipSquare, drawAcademy, drawPortal, drawCrystal, drawLantern,
   drawCollectibleGlow, drawCharacter, drawCompanionCanvas, drawNameTag, drawInteractPrompt,
@@ -398,7 +398,7 @@ export default function GameScene({ save, paused, dispatch, emoteRequest, isMobi
     drawPaths(ctx, toScreen);
     drawFriendshipSquare(ctx, toScreen);
     drawRiverAndBridge(ctx, toScreen, st.camera.x, st.camera.y, st.time, 900 / zoom);
-    drawFlowers(ctx, toScreen);
+    drawFlowers(ctx, toScreen, st.time);
     drawGrassSway(ctx, toScreen, st.camera.x, st.camera.y, st.time, 700 / zoom);
 
     const entities = [];
@@ -416,6 +416,12 @@ export default function GameScene({ save, paused, dispatch, emoteRequest, isMobi
         y: rp.y,
         draw: () => (rp.kind === 'rock' ? drawRock(ctx, toScreen(rp.x, rp.y), rp) : drawReed(ctx, toScreen(rp.x, rp.y), rp, st.time)),
       });
+    }
+    for (const b of BUTTERFLIES) {
+      const bx = b.baseX + Math.cos(st.time * b.speed + b.phase) * b.radius;
+      const by = b.baseY + Math.sin(st.time * b.speed * 1.7 + b.phase * 1.3) * b.radius * 0.5;
+      if (Math.abs(bx - st.camera.x) > 900 / zoom || Math.abs(by - st.camera.y) > 700 / zoom) continue;
+      entities.push({ y: by, draw: () => drawButterfly(ctx, toScreen(bx, by - 14), b, st.time) });
     }
     for (const c of CRYSTALS) entities.push({ y: c.y, draw: () => drawCrystal(ctx, toScreen(c.x, c.y), st.time, c.x) });
     for (const l of LANTERNS) entities.push({ y: l.y, draw: () => drawLantern(ctx, toScreen(l.x, l.y), st.time, l.x) });
