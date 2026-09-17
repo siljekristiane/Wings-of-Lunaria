@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import AvatarPreview from './AvatarPreview.jsx';
-import CompanionPreview from './CompanionPreview.jsx';
+import AvatarPreview from './AvatarPreview3D.jsx';
+import CompanionPreview from './CompanionPreview3D.jsx';
 import {
   SKIN_TONES, HAIR_COLORS, EYE_COLORS, FACE_SHAPES, HAIR_STYLES,
   CLOTHING_CATALOG, COMPANION_TYPES, COMPANION_COLORS, COMPANION_GLOWS, COMPANION_ACCESSORIES,

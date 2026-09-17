@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import AvatarPreview from './AvatarPreview.jsx';
+import AvatarPreview from './AvatarPreview3D.jsx';
 import { CLOTHING_CATALOG } from '../data/gameData.js';
 import { IconClose } from './icons.jsx';
 

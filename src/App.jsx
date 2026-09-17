@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import StartScreen from './components/StartScreen.jsx';
 import CharacterCreator from './components/CharacterCreator.jsx';
-import GameScene from './game/GameScene.jsx';
+import GameScene3D from './three/GameScene3D.jsx';
 import HUD from './components/HUD.jsx';
 import Backpack from './components/Backpack.jsx';
 import Journal from './components/Journal.jsx';
@@ -48,10 +48,17 @@ export default function App() {
         pushToast(action.text);
         break;
       case 'CHANGE_SCENE':
-        setSave((prev) => ({ ...prev, position: { scene: action.scene, x: action.x, y: action.y } }));
+        setSave((prev) => ({
+          ...prev,
+          position: { ...prev.position, scene: action.scene, x3: action.x3, z3: action.z3, rotY: action.rotY },
+        }));
         break;
-      case 'SAVE_POSITION':
-        setSave((prev) => ({ ...prev, position: { scene: action.scene, x: action.x, y: action.y } }));
+      case 'SAVE_POSITION_3D':
+        setSave((prev) => ({
+          ...prev,
+          cameraYaw: action.cameraYaw,
+          position: { ...prev.position, scene: action.scene, x3: action.x3, z3: action.z3, rotY: action.rotY },
+        }));
         break;
       case 'DISCOVER_AREA':
         setSave((prev) => (prev.discoveredAreas.includes(action.id) ? prev : { ...prev, discoveredAreas: [...prev.discoveredAreas, action.id] }));
@@ -144,7 +151,7 @@ export default function App() {
       if (ui.modal || showRadial) return;
       if (key === 'i') setUi({ modal: 'backpack', dialogueNpc: null });
       else if (key === 'j') setUi({ modal: 'journal', dialogueNpc: null });
-      else if (key === 'r') setShowRadial(true);
+      else if (key === 'm' || key === 'q') setShowRadial(true);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -182,7 +189,7 @@ export default function App() {
 
   return (
     <div className="app-root">
-      <GameScene save={save} paused={paused} dispatch={dispatch} emoteRequest={emoteRequest} isMobile={isMobile} />
+      <GameScene3D save={save} paused={paused} dispatch={dispatch} emoteRequest={emoteRequest} isMobile={isMobile} />
       <HUD
         save={save}
         isMobile={isMobile}

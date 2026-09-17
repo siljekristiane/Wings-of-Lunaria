@@ -52,7 +52,8 @@ export default function PauseMenu({ save, onClose, onSetCamera }) {
             <li>E — Samhandle</li>
             <li>I — Ryggsekk</li>
             <li>J — Dagbok</li>
-            <li>R — Emote-meny</li>
+            <li>M / Q — Emote-meny</li>
+            <li>Musedrag / touch-drag — Roter kamera</li>
             <li>Esc — Lukk / meny</li>
           </ul>
 

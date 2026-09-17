@@ -19,7 +19,8 @@ export function createDefaultSave(player, companion) {
     dialogueFlags: { rowanClueGiven: false, miraChoice: null },
     cameraMode: 1,
     cameraDistance: 1,
-    position: { scene: 'vale', x: 0, y: -260 },
+    cameraYaw: 0,
+    position: { scene: 'vale', x: 0, y: -260, x3: 0, z3: 3, rotY: Math.PI },
   };
 }
 
