@@ -27,12 +27,18 @@ Open the printed local URL. `npm run build` produces a production build in `dist
 - Three tree kinds (round/oak, tall/pine, slender pale-trunked birch) with
   hue-jittered canopy materials, an open meadow near the vale's core that
   thickens into denser forest toward the map's edges, plus bush/fern
-  undergrowth clustered near the trees and a few hand-placed benches
-- A river with an animated surface and moonlight reflections, a bridge with
-  jittered planks and four small corner lamps, dirt paths whose lanterns
-  walk the path centerline and sit just off the walkable edge (never on a
-  path or the bridge deck itself), trees/rocks/crystals/flowers, a locked
-  Moonmere portal, and the path toward Whisperwood
+  undergrowth and stump/moss/root/fallen-branch/leaf-pile clutter clustered
+  near the trees, a few hand-placed benches, and two original signposts
+- A river with an animated surface, a real shallow-bank/deep-center colour
+  gradient (via vertex colors, not a flat fill), and a curved foam strip
+  that hugs each bank and follows the river's own bends; a bridge with
+  jittered planks, handrails, and four small corner lamps; dirt paths whose
+  lanterns walk the path centerline and sit just off the walkable edge
+  (never on a path or the bridge deck itself); trees/rocks/crystals/flowers;
+  a locked Moonmere portal; and the path toward Whisperwood
+- Examine interactions (press E) on lanterns, flower patches, benches and
+  signposts give short atmospheric text instead of a reward — alongside the
+  existing crystal/portal/sign examine points
 - Third-person orbit camera (drag with mouse/touch to rotate) with four
   selectable modes and an adjustable distance slider, plus a day-night
   lighting cycle (~20 minutes of daylight, ~20 of night), drifting clouds,
@@ -67,12 +73,23 @@ are:
   model-authoring pipeline available here to make rigged character models.
 - **Materials** are solid-shaded/procedural rather than normal/roughness-map
   PBR textures.
-- **Water, clouds and fog** are animated planes/sprites/puff-clusters, not
-  volumetric raymarching or real planar reflections — a soft "moonlight
-  glint" streak stands in for a true water reflection.
+- **Water** has a real shallow/deep vertex-color gradient and a curved
+  foam strip along each bank, but no true planar reflection or normal-map
+  ripples — a soft "moonlight glint" streak stands in for reflecting the
+  sky/trees/lanterns, and rain doesn't leave ripple rings on the surface.
+- **Clouds and fog** are animated puff-clusters/sprites, not volumetric
+  raymarching.
 - **Rain** is a stylized falling-point particle shower (with a matching dip
   in sunlight and a greyer fog tint while it's active), not per-drop
   splash decals or wet-surface shading.
+- **The camera doesn't raycast against scenery** — it can clip into a tree
+  or the academy wall at some angles rather than pulling in to avoid it.
+- **No automatic graphics-quality fallback** for low-end hardware yet; the
+  fixed streaming radii (terrain/grass tile counts) are tuned for a
+  mid-range mobile GPU rather than adapting live to frame time.
+- **Path wear** (extra-worn ground where the player actually walks most)
+  isn't tracked — the path decor is static procedural variation, not a
+  live-updated heatmap.
 - **Shadow mapping is off on purpose.** A moving sun with a live shadow
   camera over this much scattered geometry is the single most expensive
   thing a scene like this can do, especially on mobile GPUs — depth reads

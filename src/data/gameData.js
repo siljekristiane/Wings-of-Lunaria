@@ -301,6 +301,41 @@ export const BENCHES = [
   { x: -280, y: 470, rot: 1.9 }, // riverbank near the bridge, facing the water
 ];
 
+// A couple of hand-placed signposts with short, original flavor text —
+// separate from the single logical "path sign" near Whisperwood (that one
+// is tied to the existing area-discovery flag and left untouched).
+export const SIGNS = [
+  { id: 'sign_square', x: 420, y: 120 + 210, rot: 0, text: 'Vennskapstorget — et sted for latter og lange samtaler under stjernene.' },
+  { id: 'sign_river', x: -280, y: 500, rot: 1.6, text: 'Silverelven. De eldste i Akademiet sier stjernelys samler seg i det stille vannet om natten.' },
+];
+
+// Small forest-floor clutter (stumps, moss, roots, fallen branches, leaf
+// piles) clustered near existing trees, generated the same way as
+// UNDERGROWTH — purely decorative, no collision.
+export const GROUND_DETAIL = (() => {
+  const list = [];
+  let seed = 5151;
+  const rand = () => {
+    seed = (seed * 9301 + 49297) % 233280;
+    return seed / 233280;
+  };
+  const kinds = ['stump', 'moss', 'root', 'branch', 'leafpile'];
+  for (const t of TREES) {
+    if (rand() < 0.3) {
+      const a = rand() * Math.PI * 2;
+      const r = 1.2 + rand() * 2.4;
+      list.push({
+        x: t.x + Math.cos(a) * r * 40,
+        y: t.y + Math.sin(a) * r * 40,
+        kind: kinds[Math.floor(rand() * kinds.length)],
+        scale: 0.6 + rand() * 0.7,
+        rot: rand() * Math.PI * 2,
+      });
+    }
+  }
+  return list;
+})();
+
 // A few small creatures wandering near flower patches for ambient life
 export const BUTTERFLIES = (() => {
   const list = [];

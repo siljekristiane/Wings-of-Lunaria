@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import {
   VALE_LANDMARKS, TREES, UNDERGROWTH, ROCKS, FLOWER_PATCHES, CRYSTALS, LANTERNS, PATHS, RIVERBANK_PROPS,
-  BENCHES, COLLECTIBLES, STAR_FRAGMENTS,
+  BENCHES, SIGNS, GROUND_DETAIL, COLLECTIBLES, STAR_FRAGMENTS,
 } from '../data/gameData.js';
 import { sx } from './scale.js';
 
@@ -155,6 +155,60 @@ export function buildWorld(scene, heightAt) {
     scene.add(group);
   }
 
+  // ---- Signposts ----
+  // Small wooden signposts with original short lore text (shown via the
+  // existing "examine" interaction, not written on the mesh itself) —
+  // one for each hand-placed entry in SIGNS, plus a visual post for the
+  // pre-existing logical Whisperwood path marker so it finally has a
+  // physical presence in the world.
+  const signPostMat = new THREE.MeshStandardMaterial({ color: '#5a4632', roughness: 0.9 });
+  const signBoardMat = new THREE.MeshStandardMaterial({ color: '#8a6f4e', roughness: 0.85 });
+  function buildSignpost(wx, wz, rot) {
+    const h = heightAt(wx, wz);
+    const group = new THREE.Group();
+    group.position.set(wx, h, wz);
+    group.rotation.y = rot;
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.045, 0.85, 6), signPostMat);
+    post.position.y = 0.42;
+    group.add(post);
+    const board = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.3, 0.04), signBoardMat);
+    board.position.set(0, 0.78, 0.02);
+    group.add(board);
+    group.children.forEach((m) => { m.castShadow = true; });
+    scene.add(group);
+  }
+  for (const s of SIGNS) buildSignpost(sx(s.x), sx(s.y), s.rot);
+  buildSignpost(sx(VALE_LANDMARKS.whisperwoodPath.x), sx(VALE_LANDMARKS.whisperwoodPath.y), 0.6);
+
+  // ---- Ground detail (stumps, moss, roots, fallen branches, leaf piles) ----
+  const stumpMat = new THREE.MeshStandardMaterial({ color: '#6b5340', roughness: 0.95 });
+  const mossMat = new THREE.MeshStandardMaterial({ color: '#4d7a4f', roughness: 0.9 });
+  const leafMat = new THREE.MeshStandardMaterial({ color: '#8a6a3a', roughness: 0.9 });
+  for (const g of GROUND_DETAIL) {
+    const wx = sx(g.x), wz = sx(g.y);
+    const h = heightAt(wx, wz);
+    if (g.kind === 'stump') {
+      const stump = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.26, 0.28, 8), stumpMat);
+      stump.position.set(wx, h + 0.14 * g.scale, wz);
+      stump.scale.setScalar(g.scale);
+      stump.rotation.y = g.rot;
+      scene.add(stump);
+    } else if (g.kind === 'moss' || g.kind === 'leafpile') {
+      const patch = new THREE.Mesh(new THREE.CircleGeometry(0.4, 8), g.kind === 'moss' ? mossMat : leafMat);
+      patch.position.set(wx, h + 0.01, wz);
+      patch.rotation.x = -Math.PI / 2;
+      patch.scale.setScalar(g.scale);
+      scene.add(patch);
+    } else {
+      // root or fallen branch: a low, slightly tapered log lying on the ground
+      const log = new THREE.Mesh(new THREE.CapsuleGeometry(0.05, 0.6, 2, 5), g.kind === 'root' ? stumpMat : leafMat);
+      log.position.set(wx, h + 0.06 * g.scale, wz);
+      log.rotation.set(Math.PI / 2, g.rot, 0.15);
+      log.scale.setScalar(g.scale);
+      scene.add(log);
+    }
+  }
+
   // ---- Flowers ----
   const flowerHues = ['#d98fa3', '#a89bd9', '#d9b45c', '#8fb3c9', '#eef0f7', '#e8a15c'];
   const flowerGeo = new THREE.SphereGeometry(0.05, 6, 5);
@@ -272,24 +326,87 @@ export function buildWorld(scene, heightAt) {
     }
   }
   denseRiver.push([sx(riverPts[riverPts.length - 1][0]), sx(riverPts[riverPts.length - 1][1])]);
+  // Three columns per cross-section (shallow bank / deep center / shallow
+  // bank) instead of two, so the water can carry a real lighter-at-the-
+  // edges, darker-in-the-middle depth gradient via vertex colors rather
+  // than one flat fill color.
   const riverVerts = [];
+  const riverColors = [];
   const riverIdx = [];
+  const shallow = new THREE.Color('#7fc9d6');
+  const deep = new THREE.Color('#1c4a63');
   for (let vi = 0; vi < denseRiver.length; vi++) {
     const [x, z] = denseRiver[vi];
-    riverVerts.push(x, -0.15, z - riverWidth / 2, x, -0.15, z + riverWidth / 2);
+    riverVerts.push(
+      x, -0.12, z - riverWidth / 2,
+      x, -0.2, z,
+      x, -0.12, z + riverWidth / 2
+    );
+    riverColors.push(shallow.r, shallow.g, shallow.b, deep.r, deep.g, deep.b, shallow.r, shallow.g, shallow.b);
     if (vi < denseRiver.length - 1) {
-      const a = vi * 2, b = vi * 2 + 1, c = vi * 2 + 2, d = vi * 2 + 3;
+      const a = vi * 3, b = vi * 3 + 1, c = vi * 3 + 3, d = vi * 3 + 4;
       riverIdx.push(a, c, b, b, c, d);
+      const e = vi * 3 + 1, f = vi * 3 + 2, g = vi * 3 + 4, h = vi * 3 + 5;
+      riverIdx.push(e, g, f, f, g, h);
     }
   }
   const riverGeo = new THREE.BufferGeometry();
   riverGeo.setAttribute('position', new THREE.Float32BufferAttribute(riverVerts, 3));
+  riverGeo.setAttribute('color', new THREE.Float32BufferAttribute(riverColors, 3));
   riverGeo.setIndex(riverIdx);
   riverGeo.computeVertexNormals();
-  const riverMat = new THREE.MeshStandardMaterial({ color: PALETTE.water, roughness: 0.25, metalness: 0.15, transparent: true, opacity: 0.88 });
+  const riverMat = new THREE.MeshStandardMaterial({
+    color: '#ffffff', vertexColors: true, roughness: 0.18, metalness: 0.25, transparent: true, opacity: 0.9,
+  });
   const riverMesh = new THREE.Mesh(riverGeo, riverMat);
   scene.add(riverMesh);
   const riverBasePositions = riverGeo.attributes.position.array.slice();
+
+  // Foam: a thin, soft-edged strip that follows the river's own curve on
+  // each bank (built from the same dense polyline as the water itself,
+  // not a straight plane, so it hugs the actual bend of the river).
+  const foamCanvas = document.createElement('canvas');
+  foamCanvas.width = 64; foamCanvas.height = 16;
+  const fctx = foamCanvas.getContext('2d');
+  const fgrad = fctx.createLinearGradient(0, 0, 0, 16);
+  fgrad.addColorStop(0, 'rgba(255,255,255,0)');
+  fgrad.addColorStop(0.5, 'rgba(255,255,255,0.7)');
+  fgrad.addColorStop(1, 'rgba(255,255,255,0)');
+  fctx.fillStyle = fgrad;
+  fctx.fillRect(0, 0, 64, 16);
+  const foamTex = new THREE.CanvasTexture(foamCanvas);
+  foamTex.wrapS = THREE.RepeatWrapping;
+  foamTex.wrapT = THREE.RepeatWrapping;
+  const foamMat = new THREE.MeshBasicMaterial({ map: foamTex, transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide });
+  function buildFoamStrip(edgeSign) {
+    const verts = [];
+    const uvs = [];
+    const idx = [];
+    let travelled = 0;
+    for (let vi = 0; vi < denseRiver.length; vi++) {
+      const [x, z] = denseRiver[vi];
+      const bankZ = z + edgeSign * riverWidth / 2;
+      verts.push(x, -0.06, bankZ - 0.2, x, -0.06, bankZ + 0.2);
+      if (vi > 0) {
+        const [px, pz] = denseRiver[vi - 1];
+        travelled += Math.hypot(x - px, z - pz);
+      }
+      const v = travelled / 1.2;
+      uvs.push(0, v, 1, v);
+      if (vi < denseRiver.length - 1) {
+        const a = vi * 2, b = vi * 2 + 1, c = vi * 2 + 2, d = vi * 2 + 3;
+        idx.push(a, c, b, b, c, d);
+      }
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    geo.setIndex(idx);
+    return new THREE.Mesh(geo, foamMat);
+  }
+  const foamL = buildFoamStrip(-1);
+  const foamR = buildFoamStrip(1);
+  scene.add(foamL, foamR);
 
   // bridge
   const br = VALE_LANDMARKS.bridge;
@@ -432,6 +549,6 @@ export function buildWorld(scene, heightAt) {
 
   return {
     trees, crystals, lanterns, collectibleMeshes, fragmentMeshes,
-    riverMesh, riverGeo, riverBasePositions, riverWidth,
+    riverMesh, riverGeo, riverBasePositions, riverWidth, foamTex,
   };
 }

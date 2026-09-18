@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
-import { NPCS, COLLECTIBLES, STAR_FRAGMENTS, VALE_LANDMARKS } from '../data/gameData.js';
+import { NPCS, COLLECTIBLES, STAR_FRAGMENTS, VALE_LANDMARKS, LANTERNS, FLOWER_PATCHES, BENCHES, SIGNS } from '../data/gameData.js';
 import { sx } from './scale.js';
 import { heightAt } from './noise.js';
 import { createTerrainSystem } from './terrain.js';
@@ -224,6 +224,31 @@ export default function GameScene3D({ save, paused, dispatch, emoteRequest, isMo
         case 'crystal':
           d({ type: 'NOTIFY', text: 'En stille krystall. Den summer svakt av gammel magi.' });
           break;
+        case 'lanternExamine': {
+          const texts = [
+            'Lykten lyser mykt i mørket og holder skyggene på avstand.',
+            'En liten flamme av stjernelys flakker bak glasset.',
+            'Varmen fra lykten kjennes beroligende i kveldskulden.',
+          ];
+          d({ type: 'NOTIFY', text: texts[Math.abs(near.id) % texts.length] });
+          break;
+        }
+        case 'flowerExamine': {
+          const texts = [
+            'Blomstene lukter svakt av honning og regn.',
+            'Kronbladene skinner litt i måneskinnet.',
+            'En liten summing av insekter rundt blomsterklyngen.',
+          ];
+          d({ type: 'NOTIFY', text: texts[Math.abs(near.id) % texts.length] });
+          break;
+        }
+        case 'benchExamine':
+          d({ type: 'NOTIFY', text: 'Benken innbyr til en pause. Herfra kan du høre dalen puste.' });
+          break;
+        case 'signpost':
+          d({ type: 'NOTIFY', text: near.text });
+          d({ type: 'DISCOVER_AREA', id: near.id });
+          break;
         case 'desk':
           d({ type: 'NOTIFY', text: 'Skrivebordet ditt, fullt av skisser fra dalen.' });
           break;
@@ -261,6 +286,10 @@ export default function GameScene3D({ save, paused, dispatch, emoteRequest, isMo
         consider('academyDoor', 'academyDoor', sx(VALE_LANDMARKS.academyDoor.x), sx(VALE_LANDMARKS.academyDoor.y), 'E — Åpne akademidøren');
         consider('portal', 'portal', sx(VALE_LANDMARKS.moonmerePortal.x), sx(VALE_LANDMARKS.moonmerePortal.y), 'E — Undersøk portalen');
         consider('sign', 'sign', sx(VALE_LANDMARKS.whisperwoodPath.x), sx(VALE_LANDMARKS.whisperwoodPath.y), 'E — Undersøk stien');
+        LANTERNS.forEach((l, i) => consider(`lantern-${i}`, 'lanternExamine', sx(l.x), sx(l.y), 'E — Undersøk lykten', { id: i }));
+        FLOWER_PATCHES.forEach((f, i) => consider(`flower-${i}`, 'flowerExamine', sx(f.x), sx(f.y), 'E — Undersøk blomstene', { id: i }));
+        BENCHES.forEach((b, i) => consider(`bench-${i}`, 'benchExamine', sx(b.x), sx(b.y), 'E — Sett deg / undersøk benken'));
+        SIGNS.forEach((s) => consider(s.id, 'signpost', sx(s.x), sx(s.y), 'E — Les skiltet', { text: s.text }));
       } else {
         const data = currentInterior();
         for (const it of data.interactables) consider(it.id, it.type, it.x, it.z, it.label);
@@ -472,6 +501,7 @@ export default function GameScene3D({ save, paused, dispatch, emoteRequest, isMo
           pos.setY(i, by + Math.sin(st.time * 1.6 + bx * 0.4) * 0.05);
         }
         pos.needsUpdate = true;
+        world.foamTex.offset.y = (st.time * 0.12) % 1;
 
         for (const [id, item] of world.collectibleMeshes) {
           const found = sv.inventory.collectibles.includes(id);
