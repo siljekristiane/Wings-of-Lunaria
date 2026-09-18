@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import {
-  VALE_LANDMARKS, TREES, ROCKS, FLOWER_PATCHES, CRYSTALS, LANTERNS, PATHS, RIVERBANK_PROPS,
-  COLLECTIBLES, STAR_FRAGMENTS,
+  VALE_LANDMARKS, TREES, UNDERGROWTH, ROCKS, FLOWER_PATCHES, CRYSTALS, LANTERNS, PATHS, RIVERBANK_PROPS,
+  BENCHES, COLLECTIBLES, STAR_FRAGMENTS,
 } from '../data/gameData.js';
 import { sx } from './scale.js';
 
@@ -28,9 +28,29 @@ export function buildWorld(scene, heightAt) {
   const trees = [];
 
   const trunkMat = new THREE.MeshStandardMaterial({ color: PALETTE.trunk, roughness: 0.9 });
-  const canopyMatA = new THREE.MeshStandardMaterial({ color: PALETTE.canopyA, roughness: 0.85 });
-  const canopyMatB = new THREE.MeshStandardMaterial({ color: PALETTE.canopyB, roughness: 0.85 });
+  const birchTrunkMat = new THREE.MeshStandardMaterial({ color: '#d8d2c4', roughness: 0.8 });
   const rockMat = new THREE.MeshStandardMaterial({ color: PALETTE.rock, roughness: 0.95, flatShading: true });
+
+  // A handful of cached, hue-jittered canopy materials (not one-per-tree —
+  // that would be hundreds of shader programs) so the forest reads as
+  // varied greens instead of two flat repeating colors.
+  const canopyMatCache = new Map();
+  function canopyMat(hue, variant) {
+    const bucket = Math.round(hue * 7);
+    const key = `${variant}-${bucket}`;
+    if (!canopyMatCache.has(key)) {
+      const base = new THREE.Color(variant === 'a' ? PALETTE.canopyA : PALETTE.canopyB);
+      const hsl = {};
+      base.getHSL(hsl);
+      const shifted = new THREE.Color().setHSL(
+        Math.max(0, Math.min(1, hsl.h + (bucket / 7 - 0.5) * 0.12)),
+        Math.max(0.25, hsl.s - (bucket / 7) * 0.15),
+        Math.max(0.2, Math.min(0.8, hsl.l + (bucket / 7 - 0.5) * 0.18))
+      );
+      canopyMatCache.set(key, new THREE.MeshStandardMaterial({ color: shifted, roughness: 0.85 }));
+    }
+    return canopyMatCache.get(key);
+  }
 
   // ---- Trees ----
   for (const t of TREES) {
@@ -40,19 +60,32 @@ export function buildWorld(scene, heightAt) {
     group.position.set(wx, h, wz);
     group.scale.setScalar(t.scale);
 
-    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.22, 1.6, 7), trunkMat);
-    trunk.position.y = 0.8;
+    const canopyMatA = canopyMat(t.hue ?? 0.5, 'a');
+    const canopyMatB = canopyMat(t.hue ?? 0.5, 'b');
+    const trunk = new THREE.Mesh(
+      new THREE.CylinderGeometry(t.kind === 'birch' ? 0.1 : 0.16, t.kind === 'birch' ? 0.13 : 0.22, t.kind === 'birch' ? 2.1 : 1.6, 7),
+      t.kind === 'birch' ? birchTrunkMat : trunkMat
+    );
+    trunk.position.y = t.kind === 'birch' ? 1.05 : 0.8;
     trunk.castShadow = true;
     group.add(trunk);
 
     const canopy = new THREE.Group();
-    canopy.position.y = 1.7;
+    canopy.position.y = t.kind === 'birch' ? 2.0 : 1.7;
     if (t.kind === 'round') {
       const c1 = new THREE.Mesh(new THREE.SphereGeometry(0.85, 8, 7), canopyMatA);
       c1.position.set(-0.45, 0.1, 0); canopy.add(c1);
       const c2 = c1.clone(); c2.position.x = 0.45; canopy.add(c2);
       const c3 = new THREE.Mesh(new THREE.SphereGeometry(1.0, 9, 7), canopyMatB);
       c3.position.y = 0.55; canopy.add(c3);
+    } else if (t.kind === 'birch') {
+      // slender, sparser oval canopy typical of a birch
+      const c1 = new THREE.Mesh(new THREE.SphereGeometry(0.55, 8, 7), canopyMatA);
+      c1.scale.set(0.85, 1.3, 0.85);
+      c1.position.set(-0.2, 0.2, 0); canopy.add(c1);
+      const c2 = new THREE.Mesh(new THREE.SphereGeometry(0.5, 8, 7), canopyMatB);
+      c2.scale.set(0.8, 1.2, 0.8);
+      c2.position.set(0.22, 0.5, 0.1); canopy.add(c2);
     } else {
       const cone1 = new THREE.Mesh(new THREE.ConeGeometry(0.9, 1.7, 8), canopyMatA);
       cone1.position.y = 0.5; canopy.add(cone1);
@@ -99,6 +132,29 @@ export function buildWorld(scene, heightAt) {
     }
   }
 
+  // ---- Benches ----
+  const benchWoodMat = new THREE.MeshStandardMaterial({ color: '#6b5138', roughness: 0.9 });
+  for (const b of BENCHES) {
+    const wx = sx(b.x), wz = sx(b.y);
+    const h = heightAt(wx, wz);
+    const group = new THREE.Group();
+    group.position.set(wx, h, wz);
+    group.rotation.y = b.rot;
+    const seat = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.05, 0.32), benchWoodMat);
+    seat.position.y = 0.26;
+    group.add(seat);
+    const back = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.28, 0.04), benchWoodMat);
+    back.position.set(0, 0.42, -0.15);
+    group.add(back);
+    for (const lx of [-0.38, 0.38]) {
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.26, 0.28), benchWoodMat);
+      leg.position.set(lx, 0.13, 0);
+      group.add(leg);
+    }
+    group.children.forEach((m) => { m.castShadow = true; });
+    scene.add(group);
+  }
+
   // ---- Flowers ----
   const flowerHues = ['#d98fa3', '#a89bd9', '#d9b45c', '#8fb3c9', '#eef0f7', '#e8a15c'];
   const flowerGeo = new THREE.SphereGeometry(0.05, 6, 5);
@@ -110,6 +166,43 @@ export function buildWorld(scene, heightAt) {
       const bloom = new THREE.Mesh(flowerGeo, mat);
       bloom.position.set(wx + k * 0.08 - 0.08, h + 0.12, wz + (k % 2) * 0.07);
       scene.add(bloom);
+    }
+  }
+
+  // ---- Undergrowth (bushes & ferns) ----
+  // Forest-floor clutter clustered near the trees generated above — cheap
+  // low-poly shapes shared across two materials, no per-object lights.
+  const bushMat = new THREE.MeshStandardMaterial({ color: '#3d6b46', roughness: 0.9 });
+  const fernMat = new THREE.MeshStandardMaterial({ color: '#4f8a54', roughness: 0.85, side: THREE.DoubleSide });
+  const bushGeo = new THREE.SphereGeometry(0.3, 6, 5);
+  const fernGeo = new THREE.ConeGeometry(0.12, 0.5, 4);
+  for (const u of UNDERGROWTH) {
+    const wx = sx(u.x), wz = sx(u.y);
+    const h = heightAt(wx, wz);
+    if (u.kind === 'bush') {
+      const group = new THREE.Group();
+      group.position.set(wx, h, wz);
+      group.scale.setScalar(u.scale);
+      for (const [dx, dz, s] of [[0, 0, 1], [0.16, 0.05, 0.7], [-0.15, 0.03, 0.75]]) {
+        const lobe = new THREE.Mesh(bushGeo, bushMat);
+        lobe.position.set(dx, 0.22 * s, dz);
+        lobe.scale.setScalar(s);
+        group.add(lobe);
+      }
+      scene.add(group);
+    } else {
+      const group = new THREE.Group();
+      group.position.set(wx, h, wz);
+      group.scale.setScalar(u.scale);
+      group.rotation.y = u.rot;
+      for (let k = 0; k < 4; k++) {
+        const blade = new THREE.Mesh(fernGeo, fernMat);
+        const a = (k / 4) * Math.PI * 2;
+        blade.position.set(Math.cos(a) * 0.06, 0.25, Math.sin(a) * 0.06);
+        blade.rotation.set(0.3, a, 0.15);
+        group.add(blade);
+      }
+      scene.add(group);
     }
   }
 
@@ -224,6 +317,23 @@ export function buildWorld(scene, heightAt) {
   railL.position.set(-plankWidth / 2, 0.2, 0);
   bridgeGroup.add(railL);
   const railR = railL.clone(); railR.position.x = plankWidth / 2; bridgeGroup.add(railR);
+
+  // four small decorative corner lamps — beside the gangway, never on it
+  const bridgeLampMat = new THREE.MeshStandardMaterial({ color: '#bfe8ec', emissive: '#8fe0e6', emissiveIntensity: 0.85, transparent: true, opacity: 0.9 });
+  const lampInset = 0.1;
+  for (const sxSign of [-1, 1]) {
+    for (const szSign of [-1, 1]) {
+      const lampX = sxSign * (plankWidth / 2 + lampInset);
+      const lampZ = szSign * (bridgeLength / 2 - 0.15);
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.025, 0.4, 6), railMat);
+      post.position.set(lampX, 0.35, lampZ);
+      bridgeGroup.add(post);
+      const orb = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), bridgeLampMat);
+      orb.position.set(lampX, 0.58, lampZ);
+      bridgeGroup.add(orb);
+    }
+  }
+  lanterns.push({ mat: bridgeLampMat, seed: brX + brZ });
 
   // ---- Friendship square ----
   const sq = VALE_LANDMARKS.friendshipSquare;

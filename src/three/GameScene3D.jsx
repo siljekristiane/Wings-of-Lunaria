@@ -4,10 +4,11 @@ import { NPCS, COLLECTIBLES, STAR_FRAGMENTS, VALE_LANDMARKS } from '../data/game
 import { sx } from './scale.js';
 import { heightAt } from './noise.js';
 import { createTerrainSystem } from './terrain.js';
+import { createGrassSystem } from './grass.js';
 import { buildWorld } from './world.js';
-import { buildHumanoid, animateHumanoid } from './characterRig.js';
+import { buildHumanoid, animateHumanoid, GROUND_FOOT_OFFSET, buildContactShadow } from './characterRig.js';
 import { buildCompanion, animateCompanion } from './companionRig.js';
-import { createFireflies, createGroundFog, createShootingStars, createAurora, createSky } from './weather.js';
+import { createFireflies, createGroundFog, createShootingStars, createAurora, createSky, createClouds, createRain } from './weather.js';
 import { resolveValeXZ, resolveRectsXZ } from './collision3d.js';
 import { buildAcademyHallScene, buildRoomScene } from './interiors.js';
 
@@ -90,26 +91,34 @@ export default function GameScene3D({ save, paused, dispatch, emoteRequest, isMo
     const valeScene = new THREE.Scene();
     const sky = createSky(valeScene, renderer);
     const terrain = createTerrainSystem(valeScene);
+    const grass = createGrassSystem(valeScene, heightAt);
     const world = buildWorld(valeScene, heightAt);
     const fireflies = createFireflies(valeScene);
     const fog = createGroundFog(valeScene);
     const aurora = createAurora(valeScene);
     const shootingStars = createShootingStars(valeScene);
+    const clouds = createClouds(valeScene);
+    const rain = createRain(valeScene);
 
     // NPC rigs (vale only)
     const npcRigs = {};
     for (const n of NPCS) {
       const rig = buildHumanoid(NPC_LOOKS[n.id] || NPC_LOOKS.elowen);
       const wx = sx(n.x), wz = sx(n.y);
-      rig.group.position.set(wx, heightAt(wx, wz), wz);
+      rig.group.position.set(wx, heightAt(wx, wz) - GROUND_FOOT_OFFSET, wz);
       rig.group.rotation.y = Math.PI;
       valeScene.add(rig.group);
+      const shadow = buildContactShadow(0.3);
+      shadow.position.set(wx, heightAt(wx, wz) + 0.02, wz);
+      valeScene.add(shadow);
       npcRigs[n.id] = { rig, anim: {}, x: wx, z: wz };
     }
 
     // Player + companion rigs
     const playerRig = buildHumanoid(playerColors(saveRef.current));
     valeScene.add(playerRig.group);
+    const playerShadow = buildContactShadow(0.36);
+    valeScene.add(playerShadow);
     const companionRig = buildCompanion(saveRef.current.companion.type, saveRef.current.companion);
     valeScene.add(companionRig.group);
 
@@ -168,6 +177,7 @@ export default function GameScene3D({ save, paused, dispatch, emoteRequest, isMo
           st.scene = 'academyHall';
           st.x = academyHallData.spawn.x; st.z = academyHallData.spawn.z; st.rotY = Math.PI;
           academyHallData.scene.add(playerRig.group);
+          academyHallData.scene.add(playerShadow);
           academyHallData.scene.add(companionRig.group);
           d({ type: 'CHANGE_SCENE', scene: 'academyHall', x3: st.x, z3: st.z, rotY: st.rotY });
           d({ type: 'DISCOVER_AREA', id: 'asterwyn_academy' });
@@ -177,6 +187,7 @@ export default function GameScene3D({ save, paused, dispatch, emoteRequest, isMo
           st.scene = 'room';
           st.x = roomData.spawn.x; st.z = roomData.spawn.z; st.rotY = Math.PI;
           roomData.scene.add(playerRig.group);
+          roomData.scene.add(playerShadow);
           roomData.scene.add(companionRig.group);
           d({ type: 'CHANGE_SCENE', scene: 'room', x3: st.x, z3: st.z, rotY: st.rotY });
           break;
@@ -185,6 +196,7 @@ export default function GameScene3D({ save, paused, dispatch, emoteRequest, isMo
           st.scene = 'vale';
           st.x = 0; st.z = sx(-380); st.rotY = 0;
           valeScene.add(playerRig.group);
+          valeScene.add(playerShadow);
           valeScene.add(companionRig.group);
           d({ type: 'CHANGE_SCENE', scene: 'vale', x3: st.x, z3: st.z, rotY: st.rotY });
           break;
@@ -193,6 +205,7 @@ export default function GameScene3D({ save, paused, dispatch, emoteRequest, isMo
           st.scene = 'academyHall';
           st.x = sx(300); st.z = sx(-150); st.rotY = Math.PI;
           academyHallData.scene.add(playerRig.group);
+          academyHallData.scene.add(playerShadow);
           academyHallData.scene.add(companionRig.group);
           d({ type: 'CHANGE_SCENE', scene: 'academyHall', x3: st.x, z3: st.z, rotY: st.rotY });
           break;
@@ -387,9 +400,10 @@ export default function GameScene3D({ save, paused, dispatch, emoteRequest, isMo
       const st = stateRef.current;
       const sv = saveRef.current;
       const groundY = groundYAt(st.scene, st.x, st.z);
-      playerRig.group.position.set(st.x, groundY, st.z);
+      playerRig.group.position.set(st.x, groundY - GROUND_FOOT_OFFSET, st.z);
       playerRig.group.rotation.y = st.rotY;
       animateHumanoid(playerRig, st.playerAnim, 0.016, st.moving, st.running, st.emote, st.emoteT);
+      playerShadow.position.set(st.x, groundY + 0.02, st.z);
 
       const compGroundY = groundYAt(st.scene, st.companion.x, st.companion.z);
       companionRig.group.position.set(st.companion.x, compGroundY, st.companion.z);
@@ -423,11 +437,21 @@ export default function GameScene3D({ save, paused, dispatch, emoteRequest, isMo
       // weather + terrain (vale only)
       if (st.scene === 'vale') {
         terrain.update(st.x, st.z);
+        grass.update(st.x, st.z, st.time);
         const { nightAmount } = sky.update(st.time, st.x, st.z);
         fireflies.update(st.time, st.x, st.z);
         fog.update(st.time, st.x, st.z);
         aurora.update(st.time, st.x, st.z, nightAmount);
         shootingStars.update(0.016, st.time, st.x, st.z);
+        clouds.update(st.time, st.x, st.z, nightAmount);
+        const rainState = rain.update(0.016, st.time, st.x, st.z);
+        if (rainState.active) {
+          // a passing shower dims the light and thickens the fog a touch —
+          // cheap global tweaks rather than wet-surface shaders
+          sky.sun.intensity *= 1 - rainState.intensity * 0.45;
+          sky.hemi.intensity *= 1 - rainState.intensity * 0.25;
+          valeScene.fog.color.lerp(new THREE.Color('#5c6478'), rainState.intensity * 0.5);
+        }
 
         for (const c of world.crystals) {
           const pulse = 0.6 + 0.4 * Math.sin(st.time * 2 + c.seed);

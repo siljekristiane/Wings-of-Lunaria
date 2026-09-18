@@ -16,6 +16,11 @@ export function createDefaultSave(player, companion) {
     quests: {
       mainQuest: { state: 'not_started', fragmentsFound: 0, foundFragmentIds: [] },
     },
+    // Data-only scaffold for a future flight feature: a modular wing "slot"
+    // on the avatar that isn't activated by any gameplay yet (no unlock
+    // flow, no flight physics) — just a save-compatible shape so that work
+    // can be added later without another save-migration pass.
+    wings: { unlocked: false, equipped: null, available: [] },
     dialogueFlags: { rowanClueGiven: false, miraChoice: null },
     cameraMode: 1,
     cameraDistance: 1,
@@ -33,6 +38,7 @@ export function normalizeSave(loaded) {
     ...loaded,
     inventory: { ...fallback.inventory, ...loaded.inventory },
     quests: { mainQuest: { ...fallback.quests.mainQuest, ...(loaded.quests && loaded.quests.mainQuest) } },
+    wings: { ...fallback.wings, ...loaded.wings },
     dialogueFlags: { ...fallback.dialogueFlags, ...loaded.dialogueFlags },
     position: { ...fallback.position, ...loaded.position },
     equippedOutfit: { ...fallback.equippedOutfit, ...loaded.equippedOutfit },

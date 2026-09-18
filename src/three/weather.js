@@ -148,6 +148,103 @@ export function createAurora(scene) {
   return { group, update };
 }
 
+// ---- Drifting clouds: cheap puff clusters that wrap around the player so
+// the sky never runs out of clouds, however far the player wanders ----
+export function createClouds(scene, count = 16) {
+  const group = new THREE.Group();
+  scene.add(group);
+  const cloudMat = new THREE.MeshBasicMaterial({
+    color: '#eef1fb', transparent: true, opacity: 0.55, depthWrite: false, fog: false,
+  });
+  const puffGeo = new THREE.SphereGeometry(1, 7, 6);
+  const RANGE = 520;
+  const clouds = [];
+  for (let i = 0; i < count; i++) {
+    const cloud = new THREE.Group();
+    const puffs = 3 + Math.floor(Math.random() * 3);
+    for (let p = 0; p < puffs; p++) {
+      const puff = new THREE.Mesh(puffGeo, cloudMat);
+      puff.position.set((Math.random() - 0.5) * 6, (Math.random() - 0.5) * 1, (Math.random() - 0.5) * 3);
+      const s = 1.4 + Math.random() * 1.6;
+      puff.scale.set(s * 1.3, s * 0.55, s);
+      cloud.add(puff);
+    }
+    cloud.position.y = 30 + Math.random() * 14;
+    group.add(cloud);
+    clouds.push({ cloud, bx: (Math.random() - 0.5) * RANGE, bz: (Math.random() - 0.5) * RANGE, speed: 1.2 + Math.random() * 1.6, seed: Math.random() * 10 });
+  }
+
+  const wrap = (v) => ((v % RANGE) + RANGE) % RANGE - RANGE / 2;
+
+  function update(t, camX, camZ, nightAmount) {
+    for (const c of clouds) {
+      c.cloud.position.x = camX + wrap(c.bx + t * c.speed * 1.4);
+      c.cloud.position.z = camZ + wrap(c.bz + t * c.speed * 0.5);
+      c.cloud.rotation.y = Math.sin(t * 0.05 + c.seed) * 0.1;
+    }
+    // dim toward a cool grey at night rather than staying bright white
+    cloudMat.color.setHSL(0.68, 0.15, 0.92 - (nightAmount ?? 0) * 0.55);
+  }
+  return { group, cloudMat, update };
+}
+
+// ---- Rain: a self-scheduled particle spell (like the shooting stars
+// above) so a few gentle showers happen per day/night cycle on their own,
+// without the game loop needing to manage timing ----
+export function createRain(scene, count = 500) {
+  const positions = new Float32Array(count * 3);
+  const speeds = new Float32Array(count);
+  const RANGE = 42;
+  for (let i = 0; i < count; i++) {
+    positions[i * 3] = (Math.random() - 0.5) * RANGE;
+    positions[i * 3 + 1] = Math.random() * 22;
+    positions[i * 3 + 2] = (Math.random() - 0.5) * RANGE;
+    speeds[i] = 14 + Math.random() * 6;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  const mat = new THREE.PointsMaterial({ color: '#c7d6e8', size: 0.07, transparent: true, opacity: 0, depthWrite: false });
+  const points = new THREE.Points(geo, mat);
+  points.visible = false;
+  scene.add(points);
+
+  // 1-2 showers per ~40-minute day/night cycle, each lasting 2-5 minutes,
+  // separated by a long dry spell — timers run in real seconds.
+  let cooldown = 300 + Math.random() * 600;
+  let duration = 0;
+  let fade = 0;
+
+  function update(dt, t, camX, camZ) {
+    if (duration > 0) {
+      duration -= dt;
+      fade = Math.min(1, fade + dt * 0.3);
+      if (duration <= 0) cooldown = 600 + Math.random() * 900;
+    } else {
+      cooldown -= dt;
+      fade = Math.max(0, fade - dt * 0.3);
+      if (cooldown <= 0) duration = 120 + Math.random() * 180;
+    }
+    const active = fade > 0.01;
+    points.visible = active;
+    if (active) {
+      const arr = geo.attributes.position.array;
+      for (let i = 0; i < count; i++) {
+        arr[i * 3 + 1] -= speeds[i] * dt;
+        if (arr[i * 3 + 1] < -1) {
+          arr[i * 3 + 1] = 20 + Math.random() * 4;
+          arr[i * 3] = (Math.random() - 0.5) * RANGE;
+          arr[i * 3 + 2] = (Math.random() - 0.5) * RANGE;
+        }
+      }
+      geo.attributes.position.needsUpdate = true;
+      points.position.set(camX, 0, camZ);
+      mat.opacity = fade * 0.55;
+    }
+    return { active, intensity: fade };
+  }
+  return { points, update };
+}
+
 // ---- Day/night sky + sun-moon light cycle ----
 export function createSky(scene, renderer) {
   scene.fog = new THREE.Fog('#3c3a68', 40, 260);
@@ -171,7 +268,7 @@ export function createSky(scene, renderer) {
   };
 
   function update(t, camX, camZ) {
-    const cycle = (t % 240) / 240; // compressed day-night cycle, ~4 min
+    const cycle = (t % 2400) / 2400; // full day-night cycle: ~20 min daylight, ~20 min night
     const angle = cycle * Math.PI * 2;
     sun.position.set(camX + Math.cos(angle) * 80, Math.sin(angle) * 80 + 5, camZ + 40);
     sun.target.position.set(camX, 0, camZ);

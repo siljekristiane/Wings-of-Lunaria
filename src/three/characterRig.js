@@ -1,5 +1,22 @@
 import * as THREE from 'three';
 
+// Vertical distance from the rig's root origin down to the sole of the
+// feet, given the current hip/leg/shoe measurements below. GameScene3D
+// subtracts this from the terrain height when placing a rig so the feet
+// actually touch the ground instead of floating above it.
+export const GROUND_FOOT_OFFSET = 0.56;
+
+// A soft dark ellipse that sits flush on the ground under a character to
+// read as a contact shadow — much cheaper than a real shadow map and still
+// sells "standing on the ground" convincingly.
+export function buildContactShadow(radius = 0.34) {
+  const geo = new THREE.CircleGeometry(radius, 16);
+  const mat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.32, depthWrite: false });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.rotation.x = -Math.PI / 2;
+  return mesh;
+}
+
 // Builds a soft, capsule-based humanoid (no external model/rig — animated by
 // rotating named joint groups each frame). Returns the root group plus a
 // lookup of the joints an animator needs.
@@ -25,9 +42,15 @@ export function buildHumanoid(colors) {
   torso.castShadow = true;
   hips.add(torso);
 
+  // neck — bridges torso and head so the head doesn't read as attached
+  // directly to the shoulders
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.058, 0.075, 0.14, 8), skinMat);
+  neck.position.y = 0.76;
+  hips.add(neck);
+
   // head group (neck up)
   const head = new THREE.Group();
-  head.position.y = 0.62;
+  head.position.y = 0.9;
   hips.add(head);
 
   const headMesh = new THREE.Mesh(new THREE.SphereGeometry(0.16, 16, 12), skinMat);
@@ -53,6 +76,17 @@ export function buildHumanoid(colors) {
   mouth.position.set(0, -0.06, 0.15);
   mouth.rotation.z = Math.PI;
   head.add(mouth);
+
+  // subtly pointed, elfin ears — visible through the hair, not exaggerated
+  const earGeo = new THREE.ConeGeometry(0.035, 0.09, 6);
+  const earL = new THREE.Mesh(earGeo, skinMat);
+  earL.position.set(-0.155, -0.015, 0.01);
+  earL.rotation.set(0, 0, 0.5);
+  head.add(earL);
+  const earR = new THREE.Mesh(earGeo, skinMat);
+  earR.position.set(0.155, -0.015, 0.01);
+  earR.rotation.set(0, 0, -0.5);
+  head.add(earR);
 
   // hair (varies loosely by style)
   let hairMesh;
@@ -113,9 +147,16 @@ export function buildHumanoid(colors) {
   const legL = buildLeg(-1);
   const legR = buildLeg(1);
 
+  // An empty, invisible anchor between the shoulder blades for a future
+  // wing-slot system — no mesh, no behavior yet, just a stable attachment
+  // point so flight can be added later without re-rigging every character.
+  const wingSlot = new THREE.Group();
+  wingSlot.position.set(0, 0.42, -0.14);
+  torso.add(wingSlot);
+
   return {
     group: root,
-    parts: { hips, torso, head, armL, armR, legL, legR, eyeL, eyeR },
+    parts: { hips, torso, head, armL, armR, legL, legR, eyeL, eyeR, wingSlot },
     materials: { skinMat, hairMat, topMat, bottomMat, shoesMat },
   };
 }
