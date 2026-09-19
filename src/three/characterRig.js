@@ -43,17 +43,17 @@ export function buildHumanoid(colors) {
   hips.add(torso);
 
   // neck — bridges torso and head so the head doesn't read as attached
-  // directly to the shoulders. Tall enough (and the head raised enough)
-  // that a real visible cylinder shows between the torso's shoulder line
-  // and the head's chin from any camera angle, not just a sliver hidden
-  // by the head/torso overlap.
-  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.22, 8), skinMat);
-  neck.position.y = 0.81;
+  // directly to the shoulders. Tall enough that a real visible cylinder
+  // shows between the torso's shoulder line and the head's chin, but not
+  // so tall it reads as stretched at close range (the character creator's
+  // preview camera is much closer than the in-game third-person view).
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.13, 8), skinMat);
+  neck.position.y = 0.765;
   hips.add(neck);
 
   // head group (neck up)
   const head = new THREE.Group();
-  head.position.y = 1.05;
+  head.position.y = 0.96;
   hips.add(head);
 
   const headMesh = new THREE.Mesh(new THREE.SphereGeometry(0.16, 16, 12), skinMat);

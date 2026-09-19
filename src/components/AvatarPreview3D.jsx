@@ -18,8 +18,11 @@ export default function AvatarPreview3D({ player, size = 220 }) {
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 20);
-    camera.position.set(0, 1.15, 3.1);
-    camera.lookAt(0, 0.95, 0);
+    // Framed to fit the whole figure (head to feet) with some headroom —
+    // the rig's hips sit at y=0.92 and the head top lands around y=2.0,
+    // so the vertical center of the body is well above the scene origin.
+    camera.position.set(0, 1.3, 4.4);
+    camera.lookAt(0, 1.2, 0);
 
     scene.add(new THREE.HemisphereLight('#e8e3ff', '#20304a', 0.9));
     const key = new THREE.DirectionalLight('#fff3d6', 0.9);
