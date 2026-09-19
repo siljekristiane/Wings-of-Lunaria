@@ -43,14 +43,17 @@ export function buildHumanoid(colors) {
   hips.add(torso);
 
   // neck — bridges torso and head so the head doesn't read as attached
-  // directly to the shoulders
-  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.058, 0.075, 0.14, 8), skinMat);
-  neck.position.y = 0.76;
+  // directly to the shoulders. Tall enough (and the head raised enough)
+  // that a real visible cylinder shows between the torso's shoulder line
+  // and the head's chin from any camera angle, not just a sliver hidden
+  // by the head/torso overlap.
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.22, 8), skinMat);
+  neck.position.y = 0.81;
   hips.add(neck);
 
   // head group (neck up)
   const head = new THREE.Group();
-  head.position.y = 0.9;
+  head.position.y = 1.05;
   hips.add(head);
 
   const headMesh = new THREE.Mesh(new THREE.SphereGeometry(0.16, 16, 12), skinMat);
@@ -102,14 +105,21 @@ export function buildHumanoid(colors) {
       hairMesh.add(puff);
     }
   } else {
-    // long / braided / ponytail: sphere cap + back drape
+    // long / braided / ponytail: sphere cap + hair falling over each
+    // shoulder — two side locks rather than one wide back-drape, so the
+    // neck stays visible down its center instead of being capped by hair.
     hairMesh = new THREE.Group();
     const cap = new THREE.Mesh(new THREE.SphereGeometry(0.166, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.55), hairMat);
     cap.position.y = 0.02;
     hairMesh.add(cap);
-    const drape = new THREE.Mesh(new THREE.CapsuleGeometry(0.09, 0.22, 2, 8), hairMat);
-    drape.position.set(0, -0.14, -0.08);
-    hairMesh.add(drape);
+    const drapeL = new THREE.Mesh(new THREE.CapsuleGeometry(0.05, 0.24, 2, 8), hairMat);
+    drapeL.position.set(-0.15, -0.22, -0.03);
+    drapeL.rotation.z = 0.16;
+    hairMesh.add(drapeL);
+    const drapeR = drapeL.clone();
+    drapeR.position.x = 0.15;
+    drapeR.rotation.z = -0.16;
+    hairMesh.add(drapeR);
   }
   head.add(hairMesh);
 

@@ -36,17 +36,22 @@ Open the printed local URL. `npm run build` produces a production build in `dist
   lanterns walk the path centerline and sit just off the walkable edge
   (never on a path or the bridge deck itself); trees/rocks/crystals/flowers;
   a locked Moonmere portal; and the path toward Whisperwood
-- Examine interactions (press E) on lanterns, flower patches, benches and
-  signposts give short atmospheric text instead of a reward — alongside the
-  existing crystal/portal/sign examine points
+- Examine interactions (press E) on lanterns, flower patches, benches,
+  rocks and signposts give short atmospheric text instead of a reward —
+  alongside the existing crystal/portal/sign examine points
 - Third-person orbit camera (drag with mouse/touch to rotate) with four
   selectable modes and an adjustable distance slider, plus a day-night
   lighting cycle (~20 minutes of daylight, ~20 of night), drifting clouds,
   occasional rain showers, ground fog, aurora, and shooting stars
-- Procedurally-animated 3D avatar (now with a proper neck, subtly pointed
-  ears, and correct foot-to-ground placement backed by a contact shadow),
-  four companion species, and NPCs (Headkeeper Elowen, Mira Vale, Rowan
-  Thale) with dialogue
+- Procedurally-animated 3D avatar with a genuinely visible neck (tall
+  enough, and with long hair parted to fall over each shoulder instead of
+  covering it), subtly pointed ears, correct foot-to-ground placement
+  backed by a contact shadow, and a jump (Space, or the mobile ↑ button)
+  that visibly arcs and lands rather than sliding
+- Four companion species — fox, cloud-cat and moon-wolf actually walk on
+  four animated legs planted on the ground (diagonal trot gait); the
+  star-dragon is the one companion that's *meant* to hover, wings and all
+- NPCs (Headkeeper Elowen, Mira Vale, Rowan Thale) with dialogue
 - A complete quest, "Det falmede stjernekartet" (find 3 star fragments and
   return them to Elowen for a reward), described in a modular
   id/description/steps/rewards shape ready for future quests to be added
@@ -113,7 +118,11 @@ anything in-game:
   Square, the river, the Whisperwood entrance, the Moonmere portal, an
   outer "Far Wilds" ring, and the vale core as a fallback — with a
   `zoneAt(x, z)` lookup — for future zone-scoped weather, spawns, or quest
-  triggers.
+  triggers. Note this is a boundary *lookup*, not yet a split of
+  `world.js` into one builder function per zone — that refactor is real
+  but lower-value than the fixes above, and risked breaking a working
+  554-line file for no visible change, so it's still pending rather than
+  done.
 - **A quest registry** (`QUESTS` in `src/data/gameData.js`): the existing
   star-fragment quest is now described with `startConditions`/`steps`/
   `completion` fields alongside its rewards, and future quests can be

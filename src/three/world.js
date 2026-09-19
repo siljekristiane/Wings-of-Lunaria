@@ -133,27 +133,41 @@ export function buildWorld(scene, heightAt) {
   }
 
   // ---- Benches ----
-  const benchWoodMat = new THREE.MeshStandardMaterial({ color: '#6b5138', roughness: 0.9 });
-  for (const b of BENCHES) {
+  // A small cached set of wood-tone variants (not one material per bench)
+  // so the handful of benches don't all look like identical clones.
+  const benchMatCache = new Map();
+  function benchMat(variant) {
+    if (!benchMatCache.has(variant)) {
+      const base = new THREE.Color('#6b5138');
+      const hsl = {}; base.getHSL(hsl);
+      const shifted = new THREE.Color().setHSL(hsl.h, hsl.s, Math.max(0.2, Math.min(0.5, hsl.l + (variant - 1) * 0.06)));
+      benchMatCache.set(variant, new THREE.MeshStandardMaterial({ color: shifted, roughness: 0.85 + variant * 0.03 }));
+    }
+    return benchMatCache.get(variant);
+  }
+  BENCHES.forEach((b, i) => {
     const wx = sx(b.x), wz = sx(b.y);
     const h = heightAt(wx, wz);
+    const mat = benchMat(i % 3);
+    const scale = 0.92 + (i % 4) * 0.05;
     const group = new THREE.Group();
     group.position.set(wx, h, wz);
     group.rotation.y = b.rot;
-    const seat = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.05, 0.32), benchWoodMat);
+    group.scale.setScalar(scale);
+    const seat = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.05, 0.32), mat);
     seat.position.y = 0.26;
     group.add(seat);
-    const back = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.28, 0.04), benchWoodMat);
+    const back = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.28, 0.04), mat);
     back.position.set(0, 0.42, -0.15);
     group.add(back);
     for (const lx of [-0.38, 0.38]) {
-      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.26, 0.28), benchWoodMat);
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.26, 0.28), mat);
       leg.position.set(lx, 0.13, 0);
       group.add(leg);
     }
     group.children.forEach((m) => { m.castShadow = true; });
     scene.add(group);
-  }
+  });
 
   // ---- Signposts ----
   // Small wooden signposts with original short lore text (shown via the

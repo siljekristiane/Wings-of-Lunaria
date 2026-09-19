@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
-import { NPCS, COLLECTIBLES, STAR_FRAGMENTS, VALE_LANDMARKS, LANTERNS, FLOWER_PATCHES, BENCHES, SIGNS } from '../data/gameData.js';
+import { NPCS, COLLECTIBLES, STAR_FRAGMENTS, VALE_LANDMARKS, LANTERNS, FLOWER_PATCHES, BENCHES, SIGNS, ROCKS } from '../data/gameData.js';
 import { sx } from './scale.js';
 import { heightAt } from './noise.js';
 import { createTerrainSystem } from './terrain.js';
@@ -70,6 +70,9 @@ export default function GameScene3D({ save, paused, dispatch, emoteRequest, isMo
     emoteNonce: -1,
     nearTarget: null,
     lastSaveAt: 0,
+    jumping: false,
+    jumpT: 0,
+    jumpOffset: 0,
   });
 
   useEffect(() => {
@@ -245,6 +248,15 @@ export default function GameScene3D({ save, paused, dispatch, emoteRequest, isMo
         case 'benchExamine':
           d({ type: 'NOTIFY', text: 'Benken innbyr til en pause. Herfra kan du høre dalen puste.' });
           break;
+        case 'rockExamine': {
+          const texts = [
+            'En værbitt stein, glatt av årevis med regn.',
+            'Mose gror i sprekkene på den gamle steinen.',
+            'Steinen er varm av dagens siste solstråler.',
+          ];
+          d({ type: 'NOTIFY', text: texts[Math.abs(near.id) % texts.length] });
+          break;
+        }
         case 'signpost':
           d({ type: 'NOTIFY', text: near.text });
           d({ type: 'DISCOVER_AREA', id: near.id });
@@ -290,6 +302,7 @@ export default function GameScene3D({ save, paused, dispatch, emoteRequest, isMo
         FLOWER_PATCHES.forEach((f, i) => consider(`flower-${i}`, 'flowerExamine', sx(f.x), sx(f.y), 'E — Undersøk blomstene', { id: i }));
         BENCHES.forEach((b, i) => consider(`bench-${i}`, 'benchExamine', sx(b.x), sx(b.y), 'E — Sett deg / undersøk benken'));
         SIGNS.forEach((s) => consider(s.id, 'signpost', sx(s.x), sx(s.y), 'E — Les skiltet', { text: s.text }));
+        ROCKS.forEach((r, i) => consider(`rock-${i}`, 'rockExamine', sx(r.x), sx(r.y), 'E — Undersøk steinen', { id: i }));
       } else {
         const data = currentInterior();
         for (const it of data.interactables) consider(it.id, it.type, it.x, it.z, it.label);
@@ -321,6 +334,11 @@ export default function GameScene3D({ save, paused, dispatch, emoteRequest, isMo
     function onKeyDown(e) {
       stateRef.current.keys[e.key.toLowerCase()] = true;
       if (e.key.toLowerCase() === 'e') handleInteract();
+      if (e.code === 'Space' && !pausedRef.current) {
+        e.preventDefault();
+        const st = stateRef.current;
+        if (!st.jumping && !st.emote) { st.jumping = true; st.jumpT = 0; }
+      }
     }
     function onKeyUp(e) { stateRef.current.keys[e.key.toLowerCase()] = false; }
     window.addEventListener('keydown', onKeyDown);
@@ -346,7 +364,12 @@ export default function GameScene3D({ save, paused, dispatch, emoteRequest, isMo
     window.addEventListener('pointerup', onPointerUp);
 
     // emote handling exposed for effect below
-    threeApiRef.current = { handleInteract };
+    function triggerJump() {
+      const st = stateRef.current;
+      if (pausedRef.current) return;
+      if (!st.jumping && !st.emote) { st.jumping = true; st.jumpT = 0; }
+    }
+    threeApiRef.current = { handleInteract, triggerJump };
 
     // ---------------- Main loop ----------------
     let raf;
@@ -367,6 +390,16 @@ export default function GameScene3D({ save, paused, dispatch, emoteRequest, isMo
         st.emoteT += dt;
         const duration = st.emote === 'cheer' ? 1.4 : st.emote === 'thanks' ? 1.8 : 1.3;
         if (st.emoteT > duration) { st.emote = null; st.emoteT = 0; }
+      }
+
+      // A short parabolic hop — mainly there so movement reads as grounded
+      // (push off, arc, land) rather than just sliding across the terrain.
+      if (st.jumping) {
+        st.jumpT += dt;
+        const JUMP_DURATION = 0.52;
+        const p = Math.min(1, st.jumpT / JUMP_DURATION);
+        st.jumpOffset = Math.sin(p * Math.PI) * 0.42;
+        if (p >= 1) { st.jumping = false; st.jumpOffset = 0; }
       }
 
       let mvx = 0, mvz = 0;
@@ -429,10 +462,13 @@ export default function GameScene3D({ save, paused, dispatch, emoteRequest, isMo
       const st = stateRef.current;
       const sv = saveRef.current;
       const groundY = groundYAt(st.scene, st.x, st.z);
-      playerRig.group.position.set(st.x, groundY - GROUND_FOOT_OFFSET, st.z);
+      playerRig.group.position.set(st.x, groundY - GROUND_FOOT_OFFSET + st.jumpOffset, st.z);
       playerRig.group.rotation.y = st.rotY;
       animateHumanoid(playerRig, st.playerAnim, 0.016, st.moving, st.running, st.emote, st.emoteT);
       playerShadow.position.set(st.x, groundY + 0.02, st.z);
+      const shadowShrink = Math.max(0.4, 1 - st.jumpOffset * 1.3);
+      playerShadow.scale.set(shadowShrink, shadowShrink, 1);
+      playerShadow.material.opacity = 0.32 * shadowShrink;
 
       const compGroundY = groundYAt(st.scene, st.companion.x, st.companion.z);
       companionRig.group.position.set(st.companion.x, compGroundY, st.companion.z);
@@ -564,6 +600,11 @@ export default function GameScene3D({ save, paused, dispatch, emoteRequest, isMo
     if (threeApiRef.current.handleInteract) threeApiRef.current.handleInteract();
   }
 
+  function handleJumpTap(e) {
+    e.preventDefault();
+    if (threeApiRef.current.triggerJump) threeApiRef.current.triggerJump();
+  }
+
   return (
     <div className="game-viewport" ref={mountRef}>
       <div ref={promptRef} className="interact-prompt-3d" style={{ display: 'none' }} />
@@ -576,6 +617,7 @@ export default function GameScene3D({ save, paused, dispatch, emoteRequest, isMo
             <div className="joystick-knob" ref={joyKnobRef} />
           </div>
           <button className="action-btn" onTouchStart={handleActionTap} onClick={handleActionTap}>E</button>
+          <button className="action-btn action-btn-jump" onTouchStart={handleJumpTap} onClick={handleJumpTap}>↑</button>
         </>
       )}
     </div>

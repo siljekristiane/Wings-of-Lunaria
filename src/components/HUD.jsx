@@ -28,7 +28,7 @@ export default function HUD({ save, onOpenBackpack, onOpenJournal, onOpenEmotes,
       </div>
 
       {!isMobile && (
-        <div className="hud-controls-hint">WASD/piltaster: Bevege deg · Shift: Løpe · Musedrag: Roter kamera · E: Samhandle · I: Ryggsekk · J: Dagbok · M/Q: Emotes · Esc: Meny</div>
+        <div className="hud-controls-hint">WASD/piltaster: Bevege deg · Shift: Løpe · Mellomrom: Hopp · Musedrag: Roter kamera · E: Samhandle · I: Ryggsekk · J: Dagbok · M/Q: Emotes · Esc: Meny</div>
       )}
     </div>
   );
