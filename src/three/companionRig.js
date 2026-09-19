@@ -1,10 +1,11 @@
 import * as THREE from 'three';
+import { toonMat } from './toon.js';
 
 // Four distinct original companion species, each built from simple smooth
 // primitives so they read as different creatures at a glance.
 export function buildCompanion(type, colors) {
   const { color, eyeColor, glow } = colors;
-  const bodyMat = new THREE.MeshStandardMaterial({ color, roughness: 0.75 });
+  const bodyMat = toonMat(color);
   const eyeMat = new THREE.MeshStandardMaterial({ color: eyeColor, emissive: eyeColor, emissiveIntensity: 0.3 });
   const glowMat = new THREE.MeshBasicMaterial({ color: glow, transparent: true, opacity: 0.16 });
 
@@ -58,21 +59,21 @@ export function buildCompanion(type, colors) {
     // A classic red fox palette: cream/white chest, muzzle and tail-tip
     // against the orange coat, with dark "socks" — the markings that
     // actually make a fox read as a fox rather than a generic orange blob.
-    const creamMat = new THREE.MeshStandardMaterial({ color: '#fdf3e0', roughness: 0.8 });
-    const darkMat = new THREE.MeshStandardMaterial({ color: '#2b2420', roughness: 0.7 });
-    const noseMat = new THREE.MeshStandardMaterial({ color: '#1c1815', roughness: 0.5 });
+    const creamMat = toonMat('#fdf3e0');
+    const darkMat = toonMat('#2b2420');
+    const noseMat = toonMat('#1c1815');
     const LH = 0.16; // leg height — everything else sits this much higher, on top of the legs
     legs = buildLegs(0.035, LH, 0.13, 0.09, darkMat);
-    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.15, 0.22, 3, 8), bodyMat);
+    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.15, 0.22, 6, 16), bodyMat);
     body.rotation.z = Math.PI / 2;
     body.position.y = 0.18 + LH;
     bob.add(body);
     // cream chest/belly patch along the underside
-    const belly = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), creamMat);
+    const belly = new THREE.Mesh(new THREE.SphereGeometry(0.13, 16, 12), creamMat);
     belly.scale.set(1.1, 0.75, 0.72);
     belly.position.set(0.02, 0.1 + LH, 0);
     bob.add(belly);
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 10), bodyMat);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.14, 20, 16), bodyMat);
     head.position.set(0.24, 0.25 + LH, 0);
     bob.add(head);
     // cream muzzle wrapping the lower half of the face

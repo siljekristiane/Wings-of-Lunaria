@@ -4,6 +4,7 @@ import {
   BENCHES, SIGNS, GROUND_DETAIL, COLLECTIBLES, STAR_FRAGMENTS,
 } from '../data/gameData.js';
 import { sx } from './scale.js';
+import { toonMat, buildPropShadow } from './toon.js';
 
 const PALETTE = {
   trunk: '#5a4632',
@@ -27,8 +28,8 @@ export function buildWorld(scene, heightAt) {
   const fragmentMeshes = new Map();
   const trees = [];
 
-  const trunkMat = new THREE.MeshStandardMaterial({ color: PALETTE.trunk, roughness: 0.9 });
-  const birchTrunkMat = new THREE.MeshStandardMaterial({ color: '#d8d2c4', roughness: 0.8 });
+  const trunkMat = toonMat(PALETTE.trunk);
+  const birchTrunkMat = toonMat('#d8d2c4');
   const rockMat = new THREE.MeshStandardMaterial({ color: PALETTE.rock, roughness: 0.95, flatShading: true });
 
   // A handful of cached, hue-jittered canopy materials (not one-per-tree —
@@ -47,7 +48,7 @@ export function buildWorld(scene, heightAt) {
         Math.max(0.25, hsl.s - (bucket / 7) * 0.15),
         Math.max(0.2, Math.min(0.8, hsl.l + (bucket / 7 - 0.5) * 0.18))
       );
-      canopyMatCache.set(key, new THREE.MeshStandardMaterial({ color: shifted, roughness: 0.85 }));
+      canopyMatCache.set(key, toonMat(shifted));
     }
     return canopyMatCache.get(key);
   }
@@ -63,7 +64,7 @@ export function buildWorld(scene, heightAt) {
     const canopyMatA = canopyMat(t.hue ?? 0.5, 'a');
     const canopyMatB = canopyMat(t.hue ?? 0.5, 'b');
     const trunk = new THREE.Mesh(
-      new THREE.CylinderGeometry(t.kind === 'birch' ? 0.1 : 0.16, t.kind === 'birch' ? 0.13 : 0.22, t.kind === 'birch' ? 2.1 : 1.6, 7),
+      new THREE.CylinderGeometry(t.kind === 'birch' ? 0.1 : 0.16, t.kind === 'birch' ? 0.13 : 0.22, t.kind === 'birch' ? 2.1 : 1.6, 12),
       t.kind === 'birch' ? birchTrunkMat : trunkMat
     );
     trunk.position.y = t.kind === 'birch' ? 1.05 : 0.8;
@@ -73,27 +74,31 @@ export function buildWorld(scene, heightAt) {
     const canopy = new THREE.Group();
     canopy.position.y = t.kind === 'birch' ? 2.0 : 1.7;
     if (t.kind === 'round') {
-      const c1 = new THREE.Mesh(new THREE.SphereGeometry(0.85, 8, 7), canopyMatA);
+      const c1 = new THREE.Mesh(new THREE.SphereGeometry(0.85, 16, 12), canopyMatA);
       c1.position.set(-0.45, 0.1, 0); canopy.add(c1);
       const c2 = c1.clone(); c2.position.x = 0.45; canopy.add(c2);
-      const c3 = new THREE.Mesh(new THREE.SphereGeometry(1.0, 9, 7), canopyMatB);
+      const c3 = new THREE.Mesh(new THREE.SphereGeometry(1.0, 16, 12), canopyMatB);
       c3.position.y = 0.55; canopy.add(c3);
     } else if (t.kind === 'birch') {
       // slender, sparser oval canopy typical of a birch
-      const c1 = new THREE.Mesh(new THREE.SphereGeometry(0.55, 8, 7), canopyMatA);
+      const c1 = new THREE.Mesh(new THREE.SphereGeometry(0.55, 14, 10), canopyMatA);
       c1.scale.set(0.85, 1.3, 0.85);
       c1.position.set(-0.2, 0.2, 0); canopy.add(c1);
-      const c2 = new THREE.Mesh(new THREE.SphereGeometry(0.5, 8, 7), canopyMatB);
+      const c2 = new THREE.Mesh(new THREE.SphereGeometry(0.5, 14, 10), canopyMatB);
       c2.scale.set(0.8, 1.2, 0.8);
       c2.position.set(0.22, 0.5, 0.1); canopy.add(c2);
     } else {
-      const cone1 = new THREE.Mesh(new THREE.ConeGeometry(0.9, 1.7, 8), canopyMatA);
+      const cone1 = new THREE.Mesh(new THREE.ConeGeometry(0.9, 1.7, 14), canopyMatA);
       cone1.position.y = 0.5; canopy.add(cone1);
-      const cone2 = new THREE.Mesh(new THREE.ConeGeometry(0.65, 1.4, 8), canopyMatB);
+      const cone2 = new THREE.Mesh(new THREE.ConeGeometry(0.65, 1.4, 14), canopyMatB);
       cone2.position.y = 1.15; canopy.add(cone2);
     }
     canopy.children.forEach((m) => { m.castShadow = true; });
     group.add(canopy);
+    // a soft grounding shadow so the tree reads as planted, not floating
+    const propShadow = buildPropShadow(0.7 * (t.kind === 'birch' ? 0.6 : 1));
+    propShadow.position.y = 0.02;
+    group.add(propShadow);
     scene.add(group);
     trees.push({ group, canopy, sway: t.sway });
   }

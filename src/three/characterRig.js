@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { toonMat } from './toon.js';
 
 // Vertical distance from the rig's root origin down to the sole of the
 // feet, given the current hip/leg/shoe measurements below. GameScene3D
@@ -24,11 +25,11 @@ export function buildHumanoid(colors) {
   const { skin, hair, top, bottom, shoes, eye, hairStyle } = colors;
   const root = new THREE.Group();
 
-  const skinMat = new THREE.MeshStandardMaterial({ color: skin, roughness: 0.8 });
-  const hairMat = new THREE.MeshStandardMaterial({ color: hair, roughness: 0.7 });
-  const topMat = new THREE.MeshStandardMaterial({ color: top, roughness: 0.85 });
-  const bottomMat = new THREE.MeshStandardMaterial({ color: bottom, roughness: 0.85 });
-  const shoesMat = new THREE.MeshStandardMaterial({ color: shoes, roughness: 0.6 });
+  const skinMat = toonMat(skin);
+  const hairMat = toonMat(hair);
+  const topMat = toonMat(top);
+  const bottomMat = toonMat(bottom);
+  const shoesMat = toonMat(shoes);
   const eyeMat = new THREE.MeshStandardMaterial({ color: eye, emissive: eye, emissiveIntensity: 0.15 });
   const darkMat = new THREE.MeshStandardMaterial({ color: '#2a2333' });
 
@@ -37,7 +38,7 @@ export function buildHumanoid(colors) {
   root.add(hips);
 
   // torso
-  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.22, 0.34, 3, 8), topMat);
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.22, 0.34, 6, 16), topMat);
   torso.position.y = 0.34;
   torso.castShadow = true;
   hips.add(torso);
@@ -47,7 +48,7 @@ export function buildHumanoid(colors) {
   // shows between the torso's shoulder line and the head's chin, but not
   // so tall it reads as stretched at close range (the character creator's
   // preview camera is much closer than the in-game third-person view).
-  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.13, 8), skinMat);
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.13, 16), skinMat);
   neck.position.y = 0.765;
   hips.add(neck);
 
@@ -56,7 +57,7 @@ export function buildHumanoid(colors) {
   head.position.y = 0.96;
   hips.add(head);
 
-  const headMesh = new THREE.Mesh(new THREE.SphereGeometry(0.16, 16, 12), skinMat);
+  const headMesh = new THREE.Mesh(new THREE.SphereGeometry(0.16, 24, 18), skinMat);
   headMesh.castShadow = true;
   head.add(headMesh);
 
@@ -81,7 +82,7 @@ export function buildHumanoid(colors) {
   head.add(mouth);
 
   // subtly pointed, elfin ears — visible through the hair, not exaggerated
-  const earGeo = new THREE.ConeGeometry(0.035, 0.09, 6);
+  const earGeo = new THREE.ConeGeometry(0.035, 0.09, 12);
   const earL = new THREE.Mesh(earGeo, skinMat);
   earL.position.set(-0.155, -0.015, 0.01);
   earL.rotation.set(0, 0, 0.5);
@@ -127,11 +128,11 @@ export function buildHumanoid(colors) {
   function buildArm(side) {
     const arm = new THREE.Group();
     arm.position.set(side * 0.26, 0.5, 0);
-    const upper = new THREE.Mesh(new THREE.CapsuleGeometry(0.05, 0.28, 2, 6), topMat);
+    const upper = new THREE.Mesh(new THREE.CapsuleGeometry(0.05, 0.28, 4, 12), topMat);
     upper.position.y = -0.16;
     upper.castShadow = true;
     arm.add(upper);
-    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 6), skinMat);
+    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.045, 12, 10), skinMat);
     hand.position.y = -0.32;
     arm.add(hand);
     hips.add(arm);
@@ -144,7 +145,7 @@ export function buildHumanoid(colors) {
   function buildLeg(side) {
     const leg = new THREE.Group();
     leg.position.set(side * 0.1, 0.02, 0);
-    const upper = new THREE.Mesh(new THREE.CapsuleGeometry(0.06, 0.3, 2, 6), bottomMat);
+    const upper = new THREE.Mesh(new THREE.CapsuleGeometry(0.06, 0.3, 4, 12), bottomMat);
     upper.position.y = -0.17;
     upper.castShadow = true;
     leg.add(upper);

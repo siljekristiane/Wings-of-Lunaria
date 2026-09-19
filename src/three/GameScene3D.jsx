@@ -356,7 +356,11 @@ export default function GameScene3D({ save, paused, dispatch, emoteRequest, isMo
       const dy = e.clientY - st.lastPointer.y;
       st.lastPointer = { x: e.clientX, y: e.clientY };
       st.camYaw -= dx * 0.006;
-      st.camPitch = Math.min(1.3, Math.max(0.05, st.camPitch + dy * 0.004));
+      // Pitch can now go negative too — dragging the camera low and behind
+      // the player tilts the view steeply upward, so you can look straight
+      // up at the sky (clouds, stars, aurora) instead of being capped at
+      // a level chase-cam angle.
+      st.camPitch = Math.min(1.3, Math.max(-1.3, st.camPitch + dy * 0.004));
     }
     function onPointerUp() { stateRef.current.dragging = false; }
     mount.addEventListener('pointerdown', onPointerDown);

@@ -28,6 +28,9 @@ export default function AvatarPreview3D({ player, size = 220 }) {
     const key = new THREE.DirectionalLight('#fff3d6', 0.9);
     key.position.set(2, 3, 2);
     scene.add(key);
+    const fill = new THREE.DirectionalLight('#8fa0d9', 0.35);
+    fill.position.set(-2, 1.2, -1.5);
+    scene.add(fill);
 
     let rig = buildHumanoid(colorsOf(player));
     scene.add(rig.group);

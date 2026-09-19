@@ -26,6 +26,9 @@ export default function CompanionPreview3D({ companion, size = 200 }) {
     const key = new THREE.DirectionalLight('#fff3d6', 0.8);
     key.position.set(2, 3, 2);
     scene.add(key);
+    const fill = new THREE.DirectionalLight('#8fa0d9', 0.3);
+    fill.position.set(-1.5, 1, -1.2);
+    scene.add(fill);
 
     let rig = buildCompanion(companion.type, companion);
     scene.add(rig.group);

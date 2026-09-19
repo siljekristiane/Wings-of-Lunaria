@@ -254,6 +254,13 @@ export function createSky(scene, renderer) {
   scene.add(sun);
   scene.add(sun.target);
 
+  // A dim, cool fill light from roughly opposite the sun — cheap extra
+  // dimensionality (a soft rim/shadow-side lift) without a second shadow
+  // map, so faces turned away from the sun aren't flat black.
+  const fill = new THREE.DirectionalLight('#8fa0d9', 0.28);
+  scene.add(fill);
+  scene.add(fill.target);
+
   const skyColors = {
     day: new THREE.Color('#7fa3c9'),
     dusk: new THREE.Color('#4a4472'),
@@ -272,6 +279,8 @@ export function createSky(scene, renderer) {
     const angle = cycle * Math.PI * 2;
     sun.position.set(camX + Math.cos(angle) * 80, Math.sin(angle) * 80 + 5, camZ + 40);
     sun.target.position.set(camX, 0, camZ);
+    fill.position.set(camX - Math.cos(angle) * 60, 30, camZ - 40);
+    fill.target.position.set(camX, 0, camZ);
     const nightAmount = Math.max(0, -Math.sin(angle));
     const dayAmount = Math.max(0, Math.sin(angle));
     sun.intensity = 0.15 + dayAmount * 1.1;
