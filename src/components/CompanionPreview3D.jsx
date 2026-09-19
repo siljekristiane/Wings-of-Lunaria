@@ -15,8 +15,12 @@ export default function CompanionPreview3D({ companion, size = 200 }) {
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 20);
-    camera.position.set(0.9, 0.75, 1.6);
-    camera.lookAt(0, 0.25, 0);
+    // Companions now stand on legs (raising their whole silhouette by that
+    // leg height), so the old low lookAt/camera pitch mostly showed the
+    // top of their backs — pulled back and leveled out for a proper
+    // three-quarter side view of the whole animal.
+    camera.position.set(1.3, 0.6, 0.95);
+    camera.lookAt(0, 0.32, 0);
 
     scene.add(new THREE.HemisphereLight('#e8e3ff', '#20304a', 0.9));
     const key = new THREE.DirectionalLight('#fff3d6', 0.8);
