@@ -88,7 +88,7 @@ export default function GameScene3D({ save, paused, dispatch, emoteRequest, isMo
     renderer.shadowMap.enabled = false;
     mount.appendChild(renderer.domElement);
 
-    const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 300);
+    const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 600);
 
     // ---- Vale scene ----
     const valeScene = new THREE.Scene();
@@ -495,11 +495,23 @@ export default function GameScene3D({ save, paused, dispatch, emoteRequest, isMo
       const focus = new THREE.Vector3(st.x, groundY + 1.1, st.z);
       const horiz = dist * Math.cos(pitch);
       const vert = dist * Math.sin(pitch) + mode.height * 0.3;
-      let camX = focus.x + Math.sin(st.camYaw) * horiz;
-      let camZ = focus.z + Math.cos(st.camYaw) * horiz;
-      let camY = focus.y + vert;
-      if (st.scene === 'vale') camY = Math.max(camY, heightAt(camX, camZ) + 0.6);
-      else camY = Math.max(camY, 0.4);
+      let offX = Math.sin(st.camYaw) * horiz;
+      let offZ = Math.cos(st.camYaw) * horiz;
+      let offY = vert;
+      // A steep look-up angle has offY well below zero; naively clamping
+      // just the Y coordinate afterward would flatten the whole view back
+      // toward horizontal. Instead, when the floor would be violated,
+      // scale the entire offset vector toward the focus point — this
+      // pulls the camera closer along the same ray, keeping the actual
+      // look-up angle intact instead of leveling it out.
+      const floorY = st.scene === 'vale' ? heightAt(focus.x + offX, focus.z + offZ) + 0.6 : 0.4;
+      if (offY < -0.001 && focus.y + offY < floorY) {
+        const scale = Math.min(1, Math.max(0.12, (floorY - focus.y) / offY));
+        offX *= scale; offY *= scale; offZ *= scale;
+      }
+      const camX = focus.x + offX;
+      const camZ = focus.z + offZ;
+      const camY = focus.y + offY;
       camera.position.set(camX, camY, camZ);
       camera.lookAt(focus);
 

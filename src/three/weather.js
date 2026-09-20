@@ -149,29 +149,53 @@ export function createAurora(scene) {
 }
 
 // ---- Drifting clouds: cheap puff clusters that wrap around the player so
-// the sky never runs out of clouds, however far the player wanders ----
-export function createClouds(scene, count = 16) {
+// the sky never runs out of clouds, however far the player wanders.
+// Three size classes (wispy/medium/big) give the sky real variety instead
+// of a dozen near-identical puffs — bigger clouds sit higher and drift
+// slower, which also reads as a bit of parallax depth. ----
+export function createClouds(scene, count = 22) {
   const group = new THREE.Group();
   scene.add(group);
   const cloudMat = new THREE.MeshBasicMaterial({
-    color: '#eef1fb', transparent: true, opacity: 0.55, depthWrite: false, fog: false,
+    color: '#eef1fb', transparent: true, opacity: 0.6, depthWrite: false, fog: false,
   });
-  const puffGeo = new THREE.SphereGeometry(1, 7, 6);
-  const RANGE = 520;
+  const puffGeo = new THREE.SphereGeometry(1, 8, 7);
+  const RANGE = 560;
+  const SIZE_CLASSES = [
+    { weight: 0.45, puffs: [2, 4], scale: [0.9, 2.0], height: [22, 32], speed: [1.6, 3.0] }, // wispy, low, fast
+    { weight: 0.35, puffs: [4, 7], scale: [2.2, 4.2], height: [30, 42], speed: [1.0, 1.9] }, // medium
+    { weight: 0.2, puffs: [6, 10], scale: [4.5, 8.5], height: [40, 56], speed: [0.5, 1.1] }, // big, high, slow
+  ];
+  function pickClass() {
+    const r = Math.random();
+    let acc = 0;
+    for (const c of SIZE_CLASSES) { acc += c.weight; if (r <= acc) return c; }
+    return SIZE_CLASSES[0];
+  }
+  const lerp = (a, b, t) => a + (b - a) * t;
   const clouds = [];
   for (let i = 0; i < count; i++) {
+    const cls = pickClass();
     const cloud = new THREE.Group();
-    const puffs = 3 + Math.floor(Math.random() * 3);
-    for (let p = 0; p < puffs; p++) {
+    const puffCount = Math.round(lerp(cls.puffs[0], cls.puffs[1], Math.random()));
+    const baseScale = lerp(cls.scale[0], cls.scale[1], Math.random());
+    const spreadX = baseScale * 2.4, spreadZ = baseScale * 1.3;
+    for (let p = 0; p < puffCount; p++) {
       const puff = new THREE.Mesh(puffGeo, cloudMat);
-      puff.position.set((Math.random() - 0.5) * 6, (Math.random() - 0.5) * 1, (Math.random() - 0.5) * 3);
-      const s = 1.4 + Math.random() * 1.6;
+      puff.position.set((Math.random() - 0.5) * spreadX, (Math.random() - 0.5) * baseScale * 0.35, (Math.random() - 0.5) * spreadZ);
+      const s = baseScale * (0.55 + Math.random() * 0.55);
       puff.scale.set(s * 1.3, s * 0.55, s);
       cloud.add(puff);
     }
-    cloud.position.y = 30 + Math.random() * 14;
+    cloud.position.y = lerp(cls.height[0], cls.height[1], Math.random());
     group.add(cloud);
-    clouds.push({ cloud, bx: (Math.random() - 0.5) * RANGE, bz: (Math.random() - 0.5) * RANGE, speed: 1.2 + Math.random() * 1.6, seed: Math.random() * 10 });
+    clouds.push({
+      cloud,
+      bx: (Math.random() - 0.5) * RANGE,
+      bz: (Math.random() - 0.5) * RANGE,
+      speed: lerp(cls.speed[0], cls.speed[1], Math.random()),
+      seed: Math.random() * 10,
+    });
   }
 
   const wrap = (v) => ((v % RANGE) + RANGE) % RANGE - RANGE / 2;
@@ -245,6 +269,41 @@ export function createRain(scene, count = 500) {
   return { points, update };
 }
 
+// A soft radial-glow billboard texture (bright center fading to
+// transparent) shared by the sun and moon discs — cheap to build once.
+function glowDiscTexture(centerColor, midColor) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128; canvas.height = 128;
+  const ctx = canvas.getContext('2d');
+  const grad = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+  grad.addColorStop(0, centerColor);
+  grad.addColorStop(0.45, midColor);
+  grad.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 128, 128);
+  return new THREE.CanvasTexture(canvas);
+}
+
+// A pale moon disc with a couple of soft, original abstract "seas" baked
+// onto the same texture — not tracing any real lunar map, just enough
+// surface variation to read as a moon rather than a flat white coin.
+function moonTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128; canvas.height = 128;
+  const ctx = canvas.getContext('2d');
+  const grad = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+  grad.addColorStop(0, 'rgba(238,242,255,1)');
+  grad.addColorStop(0.5, 'rgba(220,228,250,0.9)');
+  grad.addColorStop(1, 'rgba(220,228,250,0)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 128, 128);
+  ctx.fillStyle = 'rgba(180,190,215,0.35)';
+  ctx.beginPath(); ctx.ellipse(50, 46, 16, 12, 0.4, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(78, 74, 12, 9, -0.3, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(46, 82, 7, 0, Math.PI * 2); ctx.fill();
+  return new THREE.CanvasTexture(canvas);
+}
+
 // ---- Day/night sky + sun-moon light cycle ----
 export function createSky(scene, renderer) {
   scene.fog = new THREE.Fog('#3c3a68', 40, 260);
@@ -260,6 +319,24 @@ export function createSky(scene, renderer) {
   const fill = new THREE.DirectionalLight('#8fa0d9', 0.28);
   scene.add(fill);
   scene.add(fill.target);
+
+  // Visible sun/moon discs, riding the same arc as their lights but at a
+  // much larger radius so they read as distant sky objects rather than
+  // nearby glowing balls. `fog: false` keeps them from washing out at
+  // the scene's fairly short fog distance.
+  const SKY_R = 210;
+  const sunMat = new THREE.SpriteMaterial({
+    map: glowDiscTexture('rgba(255,250,222,1)', 'rgba(255,225,150,0.55)'),
+    transparent: true, depthWrite: false, fog: false, blending: THREE.AdditiveBlending,
+  });
+  const sunSprite = new THREE.Sprite(sunMat);
+  sunSprite.scale.set(46, 46, 1);
+  scene.add(sunSprite);
+
+  const moonMat = new THREE.SpriteMaterial({ map: moonTexture(), transparent: true, depthWrite: false, fog: false });
+  const moonSprite = new THREE.Sprite(moonMat);
+  moonSprite.scale.set(30, 30, 1);
+  scene.add(moonSprite);
 
   const skyColors = {
     day: new THREE.Color('#7fa3c9'),
@@ -287,6 +364,15 @@ export function createSky(scene, renderer) {
     sun.color.setHSL(0.13 - dayAmount * 0.02, 0.5, 0.6 + dayAmount * 0.25);
     hemi.intensity = 0.25 + dayAmount * 0.35;
 
+    // Sun and moon ride the same arc, 180° apart, so one rises as the
+    // other sets — a real disc you can look up and actually see, not
+    // just an invisible light direction.
+    sunSprite.position.set(camX + Math.cos(angle) * SKY_R, Math.sin(angle) * SKY_R + 12, camZ + 40 * (SKY_R / 80));
+    sunMat.opacity = Math.max(0.15, dayAmount);
+    const moonAngle = angle + Math.PI;
+    moonSprite.position.set(camX + Math.cos(moonAngle) * SKY_R, Math.sin(moonAngle) * SKY_R + 12, camZ + 40 * (SKY_R / 80));
+    moonMat.opacity = Math.max(0.1, nightAmount);
+
     let skyColor, fogColor;
     if (cycle < 0.25) { skyColor = skyColors.dawn.clone().lerp(skyColors.day, cycle / 0.25); fogColor = fogColors.dawn.clone().lerp(fogColors.day, cycle / 0.25); }
     else if (cycle < 0.5) { skyColor = skyColors.day.clone().lerp(skyColors.dusk, (cycle - 0.25) / 0.25); fogColor = fogColors.day.clone().lerp(fogColors.dusk, (cycle - 0.25) / 0.25); }
@@ -298,5 +384,5 @@ export function createSky(scene, renderer) {
     return { nightAmount, fogColor };
   }
 
-  return { sun, hemi, update };
+  return { sun, hemi, sunSprite, moonSprite, update };
 }
