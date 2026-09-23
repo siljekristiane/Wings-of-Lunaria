@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { VALE_LANDMARKS } from '../data/gameData.js';
+import { VALE_LANDMARKS, PATH_CENTERLINES } from '../data/gameData.js';
 import { sx } from './scale.js';
 
 // Real 3D grass blades (tapered, gently curved plane geometry, not flat
@@ -8,7 +8,42 @@ import { sx } from './scale.js';
 const TILE_SIZE = 40;
 const RADIUS = 2; // a smaller streaming radius than the ground itself — grass only needs to cover what's actually visible up close
 const GRID = RADIUS * 2 + 1;
-const BLADES_PER_TILE = 260;
+const BLADES_PER_TILE = 900; // dense, wild-field coverage rather than a scattering of blades
+
+// Sx-scaled path segments, used to keep grass off the walked surface and
+// shorter in a "worn verge" band right beside it, tapering back up to full
+// wild height a few meters out — the "tett og variert høyde" the well-worn
+// paths vs. the open field should read as two different textures of grass.
+const PATH_SEGMENTS = PATH_CENTERLINES.flatMap((p) => {
+  const pts = p.points.map(([x, z]) => [sx(x), sx(z)]);
+  const halfWidth = sx(p.width) / 2;
+  const segs = [];
+  for (let i = 0; i < pts.length - 1; i++) segs.push({ a: pts[i], b: pts[i + 1], halfWidth });
+  return segs;
+});
+const VERGE = 3.2; // meters beyond the path edge where grass ramps back up to full height
+
+function distToSegment(x, z, [ax, az], [bx, bz]) {
+  const dx = bx - ax, dz = bz - az;
+  const lenSq = dx * dx + dz * dz || 1;
+  let t = ((x - ax) * dx + (z - az) * dz) / lenSq;
+  t = Math.max(0, Math.min(1, t));
+  const px = ax + t * dx, pz = az + t * dz;
+  return Math.hypot(x - px, z - pz);
+}
+
+// Returns { blocked, heightMul } — blocked means "on the path, no grass
+// here"; heightMul (0..1) tapers a trampled-looking verge back up to full
+// wild height as you move away from the path.
+function pathInfluence(x, z) {
+  let heightMul = 1;
+  for (const seg of PATH_SEGMENTS) {
+    const d = distToSegment(x, z, seg.a, seg.b) - seg.halfWidth;
+    if (d < 0) return { blocked: true, heightMul: 0 };
+    if (d < VERGE) heightMul = Math.min(heightMul, 0.3 + (d / VERGE) * 0.7);
+  }
+  return { blocked: false, heightMul };
+}
 
 const ACADEMY = {
   x: sx(VALE_LANDMARKS.academyBuilding.x), z: sx(VALE_LANDMARKS.academyBuilding.y),
@@ -32,7 +67,9 @@ function riverZAt(x) {
 }
 
 // Keep blades off the water, the academy footprint, the friendship square
-// clearing and the bridge deck — everywhere else grows freely.
+// clearing, the bridge deck and the dirt paths themselves — everywhere
+// else grows freely (with a trampled-looking verge right beside paths,
+// see pathInfluence above).
 function isClear(x, z) {
   if (Math.abs(x - ACADEMY.x) < ACADEMY.hw + 3 && Math.abs(z - ACADEMY.z) < ACADEMY.hh + 3) return false;
   if (Math.hypot(x - SQUARE.x, z - SQUARE.z) < SQUARE.r + 2) return false;
@@ -42,14 +79,17 @@ function isClear(x, z) {
   return true;
 }
 
+// A thicker, taller blade than before — a low-poly wild-grass tuft rather
+// than a thin lawn blade — with a few more height segments so the wind
+// bend and the static curve both read smoothly.
 function buildBladeGeometry() {
-  const geo = new THREE.PlaneGeometry(0.085, 1, 1, 4);
+  const geo = new THREE.PlaneGeometry(0.14, 1, 1, 5);
   geo.translate(0, 0.5, 0); // base at local y=0, tip at y=1
   const pos = geo.attributes.position;
   for (let i = 0; i < pos.count; i++) {
     const t = Math.max(0, pos.getY(i));
-    pos.setX(i, pos.getX(i) * Math.max(0.12, 1 - t * 0.82)); // taper to a point
-    pos.setZ(i, t * t * 0.1); // gentle static curve so blades aren't rigid sticks
+    pos.setX(i, pos.getX(i) * Math.max(0.08, 1 - t * 0.88)); // taper to a point
+    pos.setZ(i, t * t * 0.16); // gentle static curve so blades aren't rigid sticks
   }
   geo.computeVertexNormals();
   return geo;
@@ -69,8 +109,8 @@ export function createGrassSystem(scene, heightAt) {
         float windPhase = uTime * 1.6 + (instanceMatrix[3].x + instanceMatrix[3].z) * 0.16;
         float bend = clamp(position.y, 0.0, 1.0);
         bend *= bend;
-        transformed.x += sin(windPhase) * 0.16 * bend;
-        transformed.z += cos(windPhase * 0.8) * 0.07 * bend;`
+        transformed.x += sin(windPhase) * 0.22 * bend;
+        transformed.z += cos(windPhase * 0.8) * 0.12 * bend;`
       );
   };
 
@@ -104,10 +144,16 @@ export function createGrassSystem(scene, heightAt) {
       const lz = (rand() - 0.5) * TILE_SIZE;
       const wx = mesh.position.x + lx, wz = mesh.position.z + lz;
       if (!isClear(wx, wz)) continue;
+      const path = pathInfluence(wx, wz);
+      if (path.blocked) continue;
       dummy.position.set(lx, heightAt(wx, wz), lz);
       dummy.rotation.set(0, rand() * Math.PI * 2, 0);
-      const s = 0.6 + rand() * 0.7;
-      dummy.scale.set(s, s * (0.8 + rand() * 0.5), s);
+      // Wide base range for genuinely varied height (short/young blades
+      // next to tall wild ones), then a worn-down verge right beside
+      // paths — thinner and shorter, like grass that's actually walked on.
+      const widthS = 0.55 + rand() * 0.75;
+      const heightS = (0.9 + rand() * 1.5) * path.heightMul;
+      dummy.scale.set(widthS * (0.7 + path.heightMul * 0.3), widthS * heightS, widthS * (0.7 + path.heightMul * 0.3));
       dummy.updateMatrix();
       mesh.setMatrixAt(placed, dummy.matrix);
       mesh.setColorAt(placed, new THREE.Color().setHSL(0.32 + rand() * 0.06, 0.4 + rand() * 0.2, 0.3 + rand() * 0.12));
