@@ -8,6 +8,7 @@ import { buildWorld } from './world.js';
 import { buildHumanoid, animateHumanoid, GROUND_FOOT_OFFSET, buildContactShadow } from './characterRig.js';
 import { buildCompanion, animateCompanion } from './companionRig.js';
 import { createFireflies, createGroundFog, createShootingStars, createAurora, createSky, createClouds, createRain } from './weather.js';
+import { createDragonflySwarm } from './dragonflies.js';
 import { resolveValeXZ, resolveRectsXZ } from './collision3d.js';
 import { buildAcademyHallScene, buildRoomScene } from './interiors.js';
 
@@ -100,6 +101,7 @@ export default function GameScene3D({ save, paused, dispatch, emoteRequest, isMo
     const shootingStars = createShootingStars(valeScene);
     const clouds = createClouds(valeScene);
     const rain = createRain(valeScene);
+    const dragonflies = createDragonflySwarm(valeScene);
 
     // NPC rigs (vale only)
     const npcRigs = {};
@@ -522,6 +524,7 @@ export default function GameScene3D({ save, paused, dispatch, emoteRequest, isMo
         aurora.update(st.time, st.x, st.z, nightAmount);
         shootingStars.update(0.016, st.time, st.x, st.z);
         clouds.update(st.time, st.x, st.z, nightAmount);
+        dragonflies.update(0.016, st.time, st.x, st.z);
         const rainState = rain.update(0.016, st.time, st.x, st.z);
         if (rainState.active) {
           // a passing shower dims the light and thickens the fog a touch —
