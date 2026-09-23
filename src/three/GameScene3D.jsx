@@ -4,7 +4,6 @@ import { NPCS, COLLECTIBLES, STAR_FRAGMENTS, VALE_LANDMARKS, LANTERNS, FLOWER_PA
 import { sx } from './scale.js';
 import { heightAt } from './noise.js';
 import { createTerrainSystem } from './terrain.js';
-import { createGrassSystem } from './grass.js';
 import { buildWorld } from './world.js';
 import { buildHumanoid, animateHumanoid, GROUND_FOOT_OFFSET, buildContactShadow } from './characterRig.js';
 import { buildCompanion, animateCompanion } from './companionRig.js';
@@ -94,7 +93,6 @@ export default function GameScene3D({ save, paused, dispatch, emoteRequest, isMo
     const valeScene = new THREE.Scene();
     const sky = createSky(valeScene, renderer);
     const terrain = createTerrainSystem(valeScene);
-    const grass = createGrassSystem(valeScene, heightAt);
     const world = buildWorld(valeScene, heightAt);
     const fireflies = createFireflies(valeScene);
     const fog = createGroundFog(valeScene);
@@ -518,7 +516,6 @@ export default function GameScene3D({ save, paused, dispatch, emoteRequest, isMo
       // weather + terrain (vale only)
       if (st.scene === 'vale') {
         terrain.update(st.x, st.z);
-        grass.update(st.x, st.z, st.time);
         const { nightAmount } = sky.update(st.time, st.x, st.z);
         fireflies.update(st.time, st.x, st.z);
         fog.update(st.time, st.x, st.z);
