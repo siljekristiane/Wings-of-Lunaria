@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AREAS, QUEST_MAIN, COLLECTIBLES, STAR_FRAGMENTS } from '../data/gameData.js';
+import { AREAS, QUEST_MAIN, QUEST_DRAGONFLY, COLLECTIBLES, STAR_FRAGMENTS } from '../data/gameData.js';
 import { IconClose } from './icons.jsx';
 
 const TABS = ['Kart', 'Oppdrag', 'Ledetråder', 'Samlingsbok', 'Notater'];
@@ -22,6 +22,7 @@ export default function Journal({ save, onClose }) {
   }, [onClose]);
 
   const q = save.quests.mainQuest;
+  const dq = save.quests.dragonflyQuest;
 
   return (
     <div className="modal-overlay">
@@ -69,6 +70,15 @@ export default function Journal({ save, onClose }) {
                 </p>
                 {q.state !== 'not_started' && <p>{QUEST_MAIN.description}</p>}
               </div>
+              {save.dialogueFlags.rowanClueGiven && (
+                <div className="quest-entry">
+                  <h3>{QUEST_DRAGONFLY.title}</h3>
+                  <p className="quest-status">
+                    Status: {dq.state === 'not_started' ? 'Ikke startet' : dq.state === 'active' ? (dq.found ? 'Funnet — fortell Rowan' : 'Aktiv') : 'Fullført'}
+                  </p>
+                  {dq.state !== 'not_started' && <p>{QUEST_DRAGONFLY.description}</p>}
+                </div>
+              )}
             </div>
           )}
 
@@ -77,7 +87,15 @@ export default function Journal({ save, onClose }) {
               {save.dialogueFlags.rowanClueGiven ? (
                 <div className="quest-entry">
                   <h3>En skapning i Whisperwood</h3>
-                  <p>Rowan Thale tror en liten skapning inne i skogen trenger hjelp. Whisperwood er ikke trygt å utforske ennå — dette blir et fremtidig oppdrag.</p>
+                  <p>
+                    {dq.state === 'complete'
+                      ? 'Skapningen var en liten øyenstikker — Pip. Hun følger deg nå overalt.'
+                      : dq.state === 'active' && dq.found
+                        ? 'Du fant henne! Gå tilbake til Rowan Thale og fortell hva du fant.'
+                        : dq.state === 'active'
+                          ? 'Rowan sendte deg for å finne skapningen lengre inne i Whisperwood, forbi skiltet ved stien.'
+                          : 'Rowan Thale tror en liten skapning inne i skogen trenger hjelp. Snakk med henne igjen for å høre mer.'}
+                  </p>
                 </div>
               ) : (
                 <p className="panel-hint">Ingen ledetråder oppdaget ennå.</p>

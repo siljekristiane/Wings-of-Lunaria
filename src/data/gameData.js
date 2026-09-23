@@ -466,7 +466,28 @@ export const QUEST_MAIN = {
   completion: { setsFlag: 'faded_starmap_complete' },
 };
 
+// Where the hidden dragonfly waits, a bit past the Whisperwood sign and
+// off the path itself — "lengre inne i Whisperwood" per Rowan's clue.
+export const DRAGONFLY_NEST = { x: -1000, y: 760 };
+
+export const QUEST_DRAGONFLY = {
+  id: 'whisperwood_dragonfly',
+  title: 'Vennen i Whisperwood',
+  giver: 'Rowan Thale',
+  description:
+    'Rowan hørte noe bevege seg lengre inne i Whisperwood. Gå forbi skiltet ved stien og finn skapningen som gjemmer seg der.',
+  startConditions: { requires: ['rowanClueGiven'], dialogue: 'rowan_offer' },
+  steps: [
+    { id: 'find_dragonfly', description: 'Finn skapningen lengre inne i Whisperwood.', target: 1, trackedBy: 'found' },
+    { id: 'return_to_rowan', description: 'Fortell Rowan hva du fant.' },
+  ],
+  rewardStardust: 25,
+  rewardXp: 20,
+  companionName: 'Pip',
+  completion: { setsFlag: 'dragonfly_companion' },
+};
+
 // Registry future quests get appended to — nothing else reads this array
 // yet, it exists so a new quest is "add an entry here", not "touch the
 // engine".
-export const QUESTS = [QUEST_MAIN];
+export const QUESTS = [QUEST_MAIN, QUEST_DRAGONFLY];

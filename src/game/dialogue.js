@@ -81,9 +81,40 @@ export function buildDialogue(npcId, save) {
         onFinish: 'rowan_clue',
       };
     }
+    const dq = save.quests.dragonflyQuest;
+    if (dq.state === 'not_started') {
+      return {
+        title: 'Rowan Thale',
+        lines: [
+          'Er du klar for å se etter den skapningen? Den gjemmer seg lengre inne i Whisperwood, forbi skiltet ved stien.',
+          'Den er sky, men ikke farlig — bare gå rolig og forsiktig, så finner du den nok.',
+        ],
+        choices: [
+          { label: 'Jeg går og ser', action: 'accept_dragonfly_quest' },
+          { label: 'Ikke ennå', action: 'decline' },
+        ],
+      };
+    }
+    if (dq.state === 'active' && !dq.found) {
+      return {
+        title: 'Rowan Thale',
+        lines: ['Følg stien forbi skiltet og inn mellom de tette trærne. Du kjenner den igjen når du ser den gløde svakt.'],
+      };
+    }
+    if (dq.state === 'active' && dq.found) {
+      return {
+        title: 'Rowan Thale',
+        lines: [
+          'Der ser du! Og den har allerede knyttet seg til deg.',
+          'En liten øyenstikker som den følger sjelden noen frivillig — du må ha gjort noe rett.',
+          'Skal vi kalle henne Pip?',
+        ],
+        onFinish: 'complete_dragonfly_quest',
+      };
+    }
     return {
       title: 'Rowan Thale',
-      lines: ['Whisperwood venter fortsatt på oss. Jeg holder øynene åpne til vi kan gå dit sammen.'],
+      lines: ['Pip ser ut til å trives med deg. Hold øye med henne — hun har for vane å flyte rett opp mot himmelen når hun blir ivrig.'],
     };
   }
 

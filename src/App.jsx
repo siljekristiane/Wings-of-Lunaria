@@ -10,7 +10,7 @@ import PauseMenu from './components/PauseMenu.jsx';
 import DialogueBox from './components/DialogueBox.jsx';
 import RadialMenu from './components/RadialMenu.jsx';
 import Toast from './components/Toast.jsx';
-import { NPCS, QUEST_MAIN } from './data/gameData.js';
+import { NPCS, QUEST_MAIN, QUEST_DRAGONFLY } from './data/gameData.js';
 import { createDefaultSave, normalizeSave } from './data/defaultSave.js';
 import { loadSave, writeSave } from './hooks/useGameSave.js';
 
@@ -86,6 +86,14 @@ export default function App() {
           };
         });
         break;
+      case 'FIND_DRAGONFLY':
+        setSave((prev) => {
+          const dq = prev.quests.dragonflyQuest;
+          if (dq.state !== 'active' || dq.found) return prev;
+          pushToast('Du hører en svak summing... noe smått og glødende rører på seg! Gå tilbake til Rowan.');
+          return { ...prev, quests: { ...prev.quests, dragonflyQuest: { ...dq, found: true } } };
+        });
+        break;
       default:
         break;
     }
@@ -115,6 +123,20 @@ export default function App() {
       }
       if (action === 'mira_simple' || action === 'mira_bold') {
         return { ...prev, dialogueFlags: { ...prev.dialogueFlags, miraChoice: action } };
+      }
+      if (action === 'accept_dragonfly_quest') {
+        pushToast('Oppdrag startet: ' + QUEST_DRAGONFLY.title);
+        return { ...prev, quests: { ...prev.quests, dragonflyQuest: { ...prev.quests.dragonflyQuest, state: 'active' } } };
+      }
+      if (action === 'complete_dragonfly_quest') {
+        pushToast(`+${QUEST_DRAGONFLY.rewardStardust} Stjernestøv, +${QUEST_DRAGONFLY.rewardXp} EP — Pip følger deg nå!`);
+        return {
+          ...prev,
+          stardust: prev.stardust + QUEST_DRAGONFLY.rewardStardust,
+          xp: prev.xp + QUEST_DRAGONFLY.rewardXp,
+          dragonflyCompanion: true,
+          quests: { ...prev.quests, dragonflyQuest: { ...prev.quests.dragonflyQuest, state: 'complete' } },
+        };
       }
       return prev;
     });

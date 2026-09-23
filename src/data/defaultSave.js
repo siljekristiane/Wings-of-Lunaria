@@ -15,7 +15,9 @@ export function createDefaultSave(player, companion) {
     discoveredAreas: [],
     quests: {
       mainQuest: { state: 'not_started', fragmentsFound: 0, foundFragmentIds: [] },
+      dragonflyQuest: { state: 'not_started', found: false },
     },
+    dragonflyCompanion: false,
     // Data-only scaffold for a future flight feature: a modular wing "slot"
     // on the avatar that isn't activated by any gameplay yet (no unlock
     // flow, no flight physics) — just a save-compatible shape so that work
@@ -37,7 +39,10 @@ export function normalizeSave(loaded) {
     ...fallback,
     ...loaded,
     inventory: { ...fallback.inventory, ...loaded.inventory },
-    quests: { mainQuest: { ...fallback.quests.mainQuest, ...(loaded.quests && loaded.quests.mainQuest) } },
+    quests: {
+      mainQuest: { ...fallback.quests.mainQuest, ...(loaded.quests && loaded.quests.mainQuest) },
+      dragonflyQuest: { ...fallback.quests.dragonflyQuest, ...(loaded.quests && loaded.quests.dragonflyQuest) },
+    },
     wings: { ...fallback.wings, ...loaded.wings },
     dialogueFlags: { ...fallback.dialogueFlags, ...loaded.dialogueFlags },
     position: { ...fallback.position, ...loaded.position },

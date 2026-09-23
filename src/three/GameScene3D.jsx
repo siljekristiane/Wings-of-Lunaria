@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
-import { NPCS, COLLECTIBLES, STAR_FRAGMENTS, VALE_LANDMARKS, LANTERNS, FLOWER_PATCHES, BENCHES, SIGNS, ROCKS } from '../data/gameData.js';
+import { NPCS, COLLECTIBLES, STAR_FRAGMENTS, VALE_LANDMARKS, LANTERNS, FLOWER_PATCHES, BENCHES, SIGNS, ROCKS, DRAGONFLY_NEST } from '../data/gameData.js';
 import { sx } from './scale.js';
 import { heightAt } from './noise.js';
 import { createTerrainSystem } from './terrain.js';
@@ -8,7 +8,7 @@ import { buildWorld } from './world.js';
 import { buildHumanoid, animateHumanoid, GROUND_FOOT_OFFSET, buildContactShadow } from './characterRig.js';
 import { buildCompanion, animateCompanion } from './companionRig.js';
 import { createFireflies, createGroundFog, createShootingStars, createAurora, createSky, createClouds, createRain } from './weather.js';
-import { createDragonflySwarm } from './dragonflies.js';
+import { createPipCompanion, starTexture } from './dragonflies.js';
 import { resolveValeXZ, resolveRectsXZ } from './collision3d.js';
 import { buildAcademyHallScene, buildRoomScene } from './interiors.js';
 
@@ -57,6 +57,8 @@ export default function GameScene3D({ save, paused, dispatch, emoteRequest, isMo
     running: false,
     companion: { x: 0, z: 4 },
     companionState: {},
+    pip: { x: 0, y: 0, z: 0 },
+    pipInit: false,
     playerAnim: {},
     camYaw: save.cameraYaw ?? 0,
     camPitch: CAMERA_PRESETS[save.cameraMode]?.pitch ?? 0.28,
@@ -101,7 +103,6 @@ export default function GameScene3D({ save, paused, dispatch, emoteRequest, isMo
     const shootingStars = createShootingStars(valeScene);
     const clouds = createClouds(valeScene);
     const rain = createRain(valeScene);
-    const dragonflies = createDragonflySwarm(valeScene);
 
     // NPC rigs (vale only)
     const npcRigs = {};
@@ -124,6 +125,40 @@ export default function GameScene3D({ save, paused, dispatch, emoteRequest, isMo
     valeScene.add(playerShadow);
     const companionRig = buildCompanion(saveRef.current.companion.type, saveRef.current.companion);
     valeScene.add(companionRig.group);
+    const pip = createPipCompanion();
+    valeScene.add(pip.group);
+
+    // ---- Whisperwood dragonfly nest (Rowan's quest) ----
+    const nestSpotX = sx(DRAGONFLY_NEST.x), nestSpotZ = sx(DRAGONFLY_NEST.y);
+    const nestGroup = new THREE.Group();
+    nestGroup.position.set(nestSpotX, heightAt(nestSpotX, nestSpotZ), nestSpotZ);
+    nestGroup.visible = false;
+    const nestMat = new THREE.MeshStandardMaterial({
+      color: '#bfe6ff', emissive: '#8fd8ff', emissiveIntensity: 0.6, transparent: true, opacity: 0.9, roughness: 0.3,
+    });
+    const nestMesh = new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 8), nestMat);
+    nestMesh.scale.set(1, 0.8, 1.15);
+    nestMesh.position.y = 0.3;
+    nestGroup.add(nestMesh);
+    const nestGlow = new THREE.PointLight('#9fe0ff', 0.7, 4, 2);
+    nestGlow.position.y = 0.3;
+    nestGroup.add(nestGlow);
+    const nestStarMap = starTexture();
+    const nestStarGeo = new THREE.BufferGeometry();
+    const NEST_STARS = 8;
+    const nestStarPos = new Float32Array(NEST_STARS * 3);
+    nestStarGeo.setAttribute('position', new THREE.BufferAttribute(nestStarPos, 3));
+    const nestStarMat = new THREE.PointsMaterial({
+      map: nestStarMap, size: 0.24, transparent: true, opacity: 0.8, sizeAttenuation: true,
+      depthWrite: false, blending: THREE.AdditiveBlending, fog: false,
+    });
+    const nestStars = new THREE.Points(nestStarGeo, nestStarMat);
+    nestStars.frustumCulled = false;
+    nestGroup.add(nestStars);
+    const nestStarSeeds = Array.from({ length: NEST_STARS }, () => ({
+      a: Math.random() * Math.PI * 2, r: 0.3 + Math.random() * 0.25, h: 0.15 + Math.random() * 0.3, speed: 0.3 + Math.random() * 0.3, phase: Math.random() * 10,
+    }));
+    valeScene.add(nestGroup);
 
     // ---- Interior scenes ----
     const academyHallData = buildAcademyHallScene();
@@ -182,6 +217,7 @@ export default function GameScene3D({ save, paused, dispatch, emoteRequest, isMo
           academyHallData.scene.add(playerRig.group);
           academyHallData.scene.add(playerShadow);
           academyHallData.scene.add(companionRig.group);
+          academyHallData.scene.add(pip.group);
           d({ type: 'CHANGE_SCENE', scene: 'academyHall', x3: st.x, z3: st.z, rotY: st.rotY });
           d({ type: 'DISCOVER_AREA', id: 'asterwyn_academy' });
           break;
@@ -192,6 +228,7 @@ export default function GameScene3D({ save, paused, dispatch, emoteRequest, isMo
           roomData.scene.add(playerRig.group);
           roomData.scene.add(playerShadow);
           roomData.scene.add(companionRig.group);
+          roomData.scene.add(pip.group);
           d({ type: 'CHANGE_SCENE', scene: 'room', x3: st.x, z3: st.z, rotY: st.rotY });
           break;
         }
@@ -201,6 +238,7 @@ export default function GameScene3D({ save, paused, dispatch, emoteRequest, isMo
           valeScene.add(playerRig.group);
           valeScene.add(playerShadow);
           valeScene.add(companionRig.group);
+          valeScene.add(pip.group);
           d({ type: 'CHANGE_SCENE', scene: 'vale', x3: st.x, z3: st.z, rotY: st.rotY });
           break;
         }
@@ -210,6 +248,7 @@ export default function GameScene3D({ save, paused, dispatch, emoteRequest, isMo
           academyHallData.scene.add(playerRig.group);
           academyHallData.scene.add(playerShadow);
           academyHallData.scene.add(companionRig.group);
+          academyHallData.scene.add(pip.group);
           d({ type: 'CHANGE_SCENE', scene: 'academyHall', x3: st.x, z3: st.z, rotY: st.rotY });
           break;
         }
@@ -223,6 +262,9 @@ export default function GameScene3D({ save, paused, dispatch, emoteRequest, isMo
         case 'sign':
           d({ type: 'NOTIFY', text: 'Stien snor seg inn mot Whisperwood — ukjent territorium ennå.' });
           d({ type: 'DISCOVER_AREA', id: 'whisperwood_path' });
+          break;
+        case 'dragonflyNest':
+          d({ type: 'FIND_DRAGONFLY' });
           break;
         case 'crystal':
           d({ type: 'NOTIFY', text: 'En stille krystall. Den summer svakt av gammel magi.' });
@@ -298,6 +340,9 @@ export default function GameScene3D({ save, paused, dispatch, emoteRequest, isMo
         consider('academyDoor', 'academyDoor', sx(VALE_LANDMARKS.academyDoor.x), sx(VALE_LANDMARKS.academyDoor.y), 'E — Åpne akademidøren');
         consider('portal', 'portal', sx(VALE_LANDMARKS.moonmerePortal.x), sx(VALE_LANDMARKS.moonmerePortal.y), 'E — Undersøk portalen');
         consider('sign', 'sign', sx(VALE_LANDMARKS.whisperwoodPath.x), sx(VALE_LANDMARKS.whisperwoodPath.y), 'E — Undersøk stien');
+        if (sv.quests.dragonflyQuest.state === 'active' && !sv.quests.dragonflyQuest.found) {
+          consider('dragonflyNest', 'dragonflyNest', nestSpotX, nestSpotZ, 'E — Undersøk den lille skapningen');
+        }
         LANTERNS.forEach((l, i) => consider(`lantern-${i}`, 'lanternExamine', sx(l.x), sx(l.y), 'E — Undersøk lykten', { id: i }));
         FLOWER_PATCHES.forEach((f, i) => consider(`flower-${i}`, 'flowerExamine', sx(f.x), sx(f.y), 'E — Undersøk blomstene', { id: i }));
         BENCHES.forEach((b, i) => consider(`bench-${i}`, 'benchExamine', sx(b.x), sx(b.y), 'E — Sett deg / undersøk benken'));
@@ -452,6 +497,26 @@ export default function GameScene3D({ save, paused, dispatch, emoteRequest, isMo
       st.companion.x += (targetX - st.companion.x) * smoothing;
       st.companion.z += (targetZ - st.companion.z) * smoothing;
 
+      // Pip follow: hovers near shoulder height with her own little
+      // figure-8 wander layered on top, so she never looks pinned in place.
+      if (saveRef.current.dragonflyCompanion) {
+        const headY = groundYAt(st.scene, st.x, st.z) + 1.5;
+        const pipWobX = Math.sin(st.time * 1.8) * 0.32;
+        const pipWobZ = Math.cos(st.time * 1.35) * 0.32;
+        const pipWobY = Math.sin(st.time * 2.3) * 0.16;
+        const pipTargetX = st.x + pvx * 0.5 + fvx * 0.2 + pipWobX;
+        const pipTargetZ = st.z + pvz * 0.5 + fvz * 0.2 + pipWobZ;
+        const pipTargetY = headY + 0.3 + pipWobY;
+        if (!st.pipInit) {
+          st.pip.x = st.x; st.pip.y = headY; st.pip.z = st.z; st.pipInit = true;
+        } else {
+          const pipSmoothing = Math.min(1, dt * 5.5);
+          st.pip.x += (pipTargetX - st.pip.x) * pipSmoothing;
+          st.pip.y += (pipTargetY - st.pip.y) * pipSmoothing;
+          st.pip.z += (pipTargetZ - st.pip.z) * pipSmoothing;
+        }
+      }
+
       updateNearTarget();
       maybeDiscover();
 
@@ -477,6 +542,27 @@ export default function GameScene3D({ save, paused, dispatch, emoteRequest, isMo
       const compGroundY = groundYAt(st.scene, st.companion.x, st.companion.z);
       companionRig.group.position.set(st.companion.x, compGroundY, st.companion.z);
       animateCompanion(companionRig, st.companionState, 0.016, st.moving, st.time);
+
+      pip.update(st.pip.x, st.pip.y, st.pip.z, !!sv.dragonflyCompanion, 0.016, st.time);
+
+      if (st.scene === 'vale') {
+        const dq = sv.quests.dragonflyQuest;
+        nestGroup.visible = dq.state === 'active' && !dq.found;
+        if (nestGroup.visible) {
+          nestMat.emissiveIntensity = 0.4 + 0.3 * Math.sin(st.time * 2);
+          nestGlow.intensity = 0.5 + 0.3 * Math.sin(st.time * 2.4);
+          const narr = nestStarGeo.attributes.position.array;
+          for (let i = 0; i < NEST_STARS; i++) {
+            const s = nestStarSeeds[i];
+            const a = s.a + st.time * s.speed;
+            narr[i * 3] = Math.cos(a) * s.r;
+            narr[i * 3 + 1] = s.h + Math.sin(st.time * 1.1 + s.phase) * 0.08;
+            narr[i * 3 + 2] = Math.sin(a) * s.r;
+          }
+          nestStarGeo.attributes.position.needsUpdate = true;
+          nestStarMat.opacity = 0.55 + 0.35 * Math.sin(st.time * 2.6);
+        }
+      }
 
       // NPC idle
       for (const key of Object.keys(npcRigs)) {
@@ -524,7 +610,6 @@ export default function GameScene3D({ save, paused, dispatch, emoteRequest, isMo
         aurora.update(st.time, st.x, st.z, nightAmount);
         shootingStars.update(0.016, st.time, st.x, st.z);
         clouds.update(st.time, st.x, st.z, nightAmount);
-        dragonflies.update(0.016, st.time, st.x, st.z);
         const rainState = rain.update(0.016, st.time, st.x, st.z);
         if (rainState.active) {
           // a passing shower dims the light and thickens the fog a touch —
